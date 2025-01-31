@@ -35,6 +35,8 @@ model Users {
 
   transactions Transactions[] // Relacionamento 1 para N com a tabela Transactions
   currencies UsersCurrencies[] @relation("userCurrencies") // Relacionamento 1 para N com a tabela UsersCurrencies
+  accounts Accounts[] //Relacionamento 1 para N com a tabela Accounts
+  unpaid_transactions UnpaidTransactions[] //Relacionamento 1 para N com a tabela UnpaidTransactions
 }
 model UsersCurrencies {
   id Int @id @default(autoincrement())
@@ -47,8 +49,6 @@ model UsersCurrencies {
   users Users @relation("userCurrencies", fields: [userId], references: [id])
   defaultForUser Users? @relation("defaultCurrency")
 }
-
-
 
 model Transactions {
   id          Int      @id @default(autoincrement())
@@ -71,9 +71,34 @@ model Transactions {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  user Users @relation(fields: [user_id], references: [id]) //Relacionamento com a tabela Users
+  user Users @relation(fields: [user_id], references: [id]) //Relacionamento com a tabela Users[]
+  unpaidTransactions UnpaidTransactions[] // Relacionamento 1:N com a tabela UnpaidTransactions
+
   
 }
 
+model UnpaidTransactions{
+  id  Int @id @default(autoincrement())
+  userId Int
+  transactionId Int
+  amount Float
+  type String
+
+  user Users @relation(fields: [userId], references: [id])
+  transaction Transactions @relation(fields: [transactionId], references: [id])
+
+  @@unique([userId, transactionId])
+}
+
+model Accounts{
+  id Int @id @default(autoincrement())
+  userId Int
+  name String
+  balance Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user Users @relation(fields: [userId], references: [id])
+}
 
 

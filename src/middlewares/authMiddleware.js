@@ -24,9 +24,6 @@ const authMiddleware = (req, res, next) =>{
     }
 
     req.user = decoded; //Anexa os dados do usuario ao objeto de requisição
-
-    console.log("I am on middleware.js");
-    console.log(decoded);
     
     //Chama o proximo middleware ou controller na cadeia de execucao
     next(); 
