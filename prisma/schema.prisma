@@ -1,0 +1,79 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model stagedUsers{
+  id                  Int       @id @default(autoincrement())
+  name                String
+  email               String    @unique
+  password            String
+  createdAt           DateTime  @default(now())
+  expiresAt           DateTime
+  verificationCode    String
+}
+
+model Users { 
+  id Int @id @default(autoincrement())
+  name String
+  email String @unique
+  password String
+  createdAt DateTime @default(now())
+
+  defaultCurrencyId Int?  @unique // Chave estrangeira opcional para a moeda padrão
+  defaultCurrency UsersCurrencies? @relation("defaultCurrency", fields: [defaultCurrencyId], references: [id])
+
+  transactions Transactions[] // Relacionamento 1 para N com a tabela Transactions
+  currencies UsersCurrencies[] @relation("userCurrencies") // Relacionamento 1 para N com a tabela UsersCurrencies
+}
+model UsersCurrencies {
+  id Int @id @default(autoincrement())
+  userId Int
+  name String
+  symbol String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  users Users @relation("userCurrencies", fields: [userId], references: [id])
+  defaultForUser Users? @relation("defaultCurrency")
+}
+
+
+
+model Transactions {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+
+  amount      Float
+  type        String
+  paid_out    Boolean
+  payDay      DateTime
+  description String?  // Opcional
+  category    String
+  account     String
+  attachment  String?  // Opcional
+  fixed       Boolean
+  repeat      Boolean
+  typeRepeat  String? //Opcional
+  remindMe    String? //Opcional
+
+  currency    String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user Users @relation(fields: [user_id], references: [id]) //Relacionamento com a tabela Users
+  
+}
+
+
+
