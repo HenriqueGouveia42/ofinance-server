@@ -1,9 +1,10 @@
 const express = require('express');
-const {createTransaction, readMonthTransactions} = require('../controllers/transactionController');
+const {createTransaction, readMonthTransactions, readUnpaidTransactions} = require('../controllers/transactionController');
 const router = express.Router();
 
 
 router.post('/create', createTransaction);
 router.get('/readMonthTransaction', readMonthTransactions);
+router.get('/readUnpaidTransactions', readUnpaidTransactions)
 
 module.exports = router;
