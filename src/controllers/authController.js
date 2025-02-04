@@ -108,8 +108,17 @@ const loginController = async(req, res) =>{
         if(!user){
             return res.status(401).json({message: "Credenciais invalidas!"}) //401 - unauthorized
         }else{ //Email e senha existem no banco de dados. Sucesso!
+
             const token = generateToken(user);
-            return res.status(200).json({message: "Logado com sucesso!", token}); //Token retornado para o client
+
+            //Configura o cookie HttpOnly com o token
+            res.cookie("access_token", token, {
+                httpOnly: true,
+                secure: true,
+                sameSite: "Strict",
+                maxAge: 60 * 60 * 100 //Espira em 01 hora
+            })
+            return res.status(200).json({message: "Logado com sucesso!"}); //Token retornado para o client
         }
 
     }catch(error){
