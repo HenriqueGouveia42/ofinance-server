@@ -30,7 +30,7 @@ const createTransaction = async (req, res) =>{
 
         const isoPayDay = convertToISO(payDay.startDate);
 
-        const user_id = req.user.id; //Pnter user_id do token decodificado
+        const user_id = req.user.id; //Onter user_id do token decodificado
 
         const currencyId = await getDefaultCurrencyId(user_id);
         
@@ -64,7 +64,7 @@ const createTransaction = async (req, res) =>{
             },
         });
 
-        if(transaction.paid_out === false){
+        if(!transaction.paid_out){
             try{
                 const unpaidTransaction = await prisma.unpaidTransactions.create({
                     data:{
@@ -115,7 +115,7 @@ const readMonthTransactions = async(req, res) =>{
         const startDate = new Date(year, monthMap[month], 1);
         const endDate = new Date(year, monthMap[month]+1, 1);
 
-        const paidTransactions = await prisma.transactions.groupBy({
+        const transactions = await prisma.transactions.groupBy({
             by: ['type'],
             _sum: {
                 amount: true
@@ -125,7 +125,6 @@ const readMonthTransactions = async(req, res) =>{
             },
             where: {
                 user_id: userId,
-                paid_out: true, //Ignora as transacoes nao pagas
                 payDay:{
                     gte: startDate,
                     lt: endDate
@@ -134,36 +133,32 @@ const readMonthTransactions = async(req, res) =>{
         });
 
         //Inicializa o objeto de resposta
-        const paidTransactionsResult = {
+        const transactionsResult = {
             sumMonthRevenue: 0,
             sumMonthExpense: 0,
         };
 
-        paidTransactions.forEach(transaction =>{
+        transactions.forEach(transaction =>{
             if(transaction.type === 'revenue'){
-                paidTransactionsResult.sumMonthRevenue = transaction._sum.amount || 0;
+                transactionsResult.sumMonthRevenue = transaction._sum.amount || 0;
             }else if(transaction.type === 'expense'){
-                paidTransactionsResult.sumMonthExpense = transaction._sum.amount || 0;
+                transactionsResult.sumMonthExpense = transaction._sum.amount || 0;
             }
         })
-        res.json(paidTransactionsResult);
+        res.json(transactionsResult);
     }catch(error){
         console.error('Erro ao tentar ler transacoes do mes', error);
         res.status(500).json({error: "Erro ao tentar ler transacao"})
     }    
 }
 
-const readNotificationsContent = async(req, res) =>{
+const readUnpaidTransactions = async(req, res) =>{
     try{
-        const {month, year} = req.body;
-        const userId = req.user.id;
-        if(!monthMap.hasOwnProperty(month)){
-            return res.status(400).json({error: "Mes invalido!"})
-        }
+        //
     }catch(error){
         console.error(error);
-        console.log("Erro ao tentar ler o conteudo das notificacoes do mes")
+        console.log("Erro ao tentar ler as transacoes nao pagas")
     }
 }
 
-module.exports = { createTransaction, readMonthTransactions };
+module.exports = { createTransaction, readMonthTransactions, readUnpaidTransactions };
