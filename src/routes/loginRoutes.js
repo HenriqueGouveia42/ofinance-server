@@ -1,9 +1,9 @@
-
 const express = require('express');
-const {loginController, verifyTokenController} = require('../controllers/authController');
 const router = express.Router();
 
+const {loginController} = require('../controllers/authController');
+
+
 router.post('/', loginController);
-router.post('/validate-token', verifyTokenController);
 
 module.exports = router;
