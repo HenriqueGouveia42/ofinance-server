@@ -1,6 +1,7 @@
 //Controlador responsável pelas operações de autenticação, como cadastro de usuário (sign-up) e verificacao de codigo
 
-const bcrypt = require('bcrypt');   
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');  // Adicione essa linha para importar o JWT
 
 
 const {createStagedUser, createUser, findUserByEmail, verifyCode, loginByEmailAndPassword} = require('../services/userService');
@@ -116,7 +117,7 @@ const loginController = async(req, res) =>{
                 httpOnly: true,
                 secure: true,
                 sameSite: "Strict",
-                maxAge: 60 * 60 * 100 //Espira em 01 hora
+                maxAge: 60 * 60 * 100 //Expira em 01 hora
             })
             return res.status(200).json({message: "Logado com sucesso!"}); //Token retornado para o client
         }
@@ -128,23 +129,28 @@ const loginController = async(req, res) =>{
 
 }
 
-const verifyTokenController = (req, res) =>{
-    //Tenta obter o token do cabeçalho de autorização da requisição HTTP  
-    //?. -> encadeamento opcional. Retorna "undefined" se req.headers.authorization nao existir, ao inves de lancar um "Error"
-    const token = req.headers.authorization?.split(' ')[1];
-    if(!token){
-        return res.status(401).json({message: "Token nao fornecido"});
+
+const getUserFromToken = (req, res) =>{
+
+    try{
+        const token = req.cookies.access_token;
+        if(!token){
+            return res.status(401).json({message: "Token nao fornecido"});
+        }
+        const userDecoded = jwt.verify(token, process.env.JWT_SECRET);
+        if(!userDecoded){
+            return res.status(401).json({message: "Token invalido"});
+        }
+        return res.status(200).json({userDecoded});
+    }catch(error){
+        console.error("Erro ao tentar recuperar usuario a partir do token JWT dos cookies", error);
+        console.log("Erro ao tentar recuperar usuario a partir do token JWT dos cookies")
     }
-    const decoded = verifyToken(token);
-    if(!decoded){
-        return res.status(401).json({message: "Token invalido"});
-    }
-    return res.status(200).json({message:"Token valido. Sucesso!"})
 }
 
 module.exports ={
     signUpController,
     verifyCodeController,
     loginController,
-    verifyTokenController
+    getUserFromToken
 }
