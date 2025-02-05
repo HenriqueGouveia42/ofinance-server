@@ -1,0 +1,25 @@
+Para que o projeto funcione corretamente, é necessário criar um arquivo '.env' na raiz do diretório principal. As variáveis de ambiente listadas abaixo contêm valores fictícios. Copie o conteúdo abaixo para o seu arquivo '.env' e substitua os valores pelas informações reais do seu ambiente de desenvolvimento local.
+
+
+
+
+
+
+
+
+
+# Environment variables declared in this file are automatically made available to Prisma.
+# See the documentation for more detail: https://pris.ly/d/prisma-schema#accessing-environment-variables-from-the-schema
+
+# Prisma supports the native connection string format for PostgreSQL, MySQL, SQLite, SQL Server, MongoDB and CockroachDB.
+# See the documentation for all the connection string options: https://pris.ly/d/connection-strings
+
+DATABASE_URL="mysql://root:7pass6976717a@127.0.0.1:3306/ofinance"
+
+EMAIL_HOST=sandbox.smtp.mailtrap.io
+EMAIL_PORT=4632
+EMAIL_USER=23483e285e38g3
+EMAIL_PASSWORD=ac7319J2c4c8e7
+EMAIL_FROM="Ofinance App <no-reply@ofinance.com.br>"
+
+JWT_SECRET=xaB5*Dkj$9rMZ&hvQ23!kLf*@G8!
