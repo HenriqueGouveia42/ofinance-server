@@ -157,7 +157,8 @@ const readUnpaidTransactions = async(req, res) =>{
         //
     }catch(error){
         console.error(error);
-        console.log("Erro ao tentar ler as transacoes nao pagas")
+        console.log("Erro ao tentar ler as transacoes nao pagas");
+        return res.status(404).json({message: "Erro ao tentar ler as transacoes nao pagas"})
     }
 }
 
