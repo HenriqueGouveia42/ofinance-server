@@ -6,35 +6,27 @@ const dotenv = require('dotenv');
 const signUpRoutes = require('./src/routes/signUpRoutes');
 const loginRoutes = require('./src/routes/loginRoutes');
 const transactionRoutes = require('./src/routes/transactionsRoutes');
-const createItemsRoutes = require('./src/routes/createItemsRoutes');
-const decodedRoutes = require('./src/routes/decodedRoutes');
+const accountsRoutes = require('./src/routes/accountsRoutes')
+const userRoutes = require('./src/routes/userRoutes');
 const authMiddleware = require('./src/middlewares/authMiddleware');
-
-
-
-
 
 dotenv.config(); // Carrega as variáveis do .env
 
 const app = express();
-//Middleware para permitir JSON no corpo da requisição
-app.use(express.json());
 
-//Middleware para permitir o uso de cookies
-app.use(cookieParser());
+app.use(express.json()); //Middleware para permitir JSON no corpo da requisição
 
-// Habilita CORS para permitir requisições de outras origens
-app.use(cors()); 
+app.use(cookieParser()); //Middleware para permitir o uso de cookies
 
-// Rotas
-app.use('/signup', signUpRoutes);
-app.use('/login', loginRoutes);
-app.use('/transaction', authMiddleware, transactionRoutes); //Client -> POST(/transaction/create) -> authMiddleware -> transactionController -> Banco de dados/servicos externos -> response(JSON) -> Client
-app.use('/create', authMiddleware, createItemsRoutes);
-app.use('/get-user', decodedRoutes);
+app.use(cors()); // Habilita CORS para permitir requisições de outras origens
 
-// Iniciar o servidor
-const PORT = process.env.PORT || 5000;
+app.use('/auth/signup', signUpRoutes); //Registro de usuarios
+app.use('/auth/login', loginRoutes); // Login
+app.use('/user', authMiddleware, userRoutes);
+app.use('/transaction', authMiddleware, transactionRoutes);
+app.use('/accounts', authMiddleware, accountsRoutes);
+
+const PORT = process.env.PORT || 5000; // Iniciar o servidor
 app.listen(PORT, () => {
     console.log('Servidor rodando na porta: ' + PORT);
 });
