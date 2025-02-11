@@ -7,7 +7,7 @@ const signUpRoutes = require('./src/routes/signUpRoutes');
 const loginRoutes = require('./src/routes/loginRoutes');
 const transactionRoutes = require('./src/routes/transactionsRoutes');
 const accountsRoutes = require('./src/routes/accountsRoutes')
-const userRoutes = require('./src/routes/userRoutes');
+
 const authMiddleware = require('./src/middlewares/authMiddleware');
 
 dotenv.config(); // Carrega as variáveis do .env
@@ -22,7 +22,7 @@ app.use(cors()); // Habilita CORS para permitir requisições de outras origens
 
 app.use('/auth/signup', signUpRoutes); //Registro de usuarios
 app.use('/auth/login', loginRoutes); // Login
-app.use('/user', authMiddleware, userRoutes);
+
 app.use('/transaction', authMiddleware, transactionRoutes);
 app.use('/accounts', authMiddleware, accountsRoutes);
 
