@@ -118,8 +118,8 @@ const loginController = async(req, res) =>{
                 secure: true,
                 sameSite: "Strict",
                 maxAge: 60 * 60 * 100 //Expira em 01 hora
-            })
-            return res.status(200).json({message: "Logado com sucesso!"}); //Token retornado para o client
+            });
+            return res.status(200).json({message: "Logado com sucesso!"});
         }
 
     }catch(error){
@@ -129,28 +129,8 @@ const loginController = async(req, res) =>{
 
 }
 
-
-const getUserFromToken = (req, res) =>{
-
-    try{
-        const token = req.cookies.access_token;
-        if(!token){
-            return res.status(401).json({message: "Token nao fornecido"});
-        }
-        const userDecoded = jwt.verify(token, process.env.JWT_SECRET);
-        if(!userDecoded){
-            return res.status(401).json({message: "Token invalido"});
-        }
-        return res.status(200).json({userDecoded});
-    }catch(error){
-        console.error("Erro ao tentar recuperar usuario a partir do token JWT dos cookies", error);
-        console.log("Erro ao tentar recuperar usuario a partir do token JWT dos cookies")
-    }
-}
-
 module.exports ={
     signUpController,
     verifyCodeController,
     loginController,
-    getUserFromToken
 }
