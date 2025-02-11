@@ -1,4 +1,5 @@
 const {prisma} = require('../config/prismaClient');
+const { getAccountsByUserId } = require('../services/userService');
 
 const createAccount = async(req, res) =>{
     try{
@@ -20,6 +21,16 @@ const createAccount = async(req, res) =>{
     }
 }
 
+const getAccounts = async(req, res) =>{
+    try{
+        accounts = await getAccountsByUserId(req.user.id);
+        res.status(200).json(accounts);
+    }catch(error){
+        console.error("Erro ao recuperar as contas do usuario");
+        res.status(404).json({message: "Erro ao recuperar contas cadastradas do usuarios"})
+    }
+}
+
 const updateBalance = async(req, res) =>{
     try{
         const {accountId, newBalance} = req.body;
@@ -38,12 +49,7 @@ const updateBalance = async(req, res) =>{
     }
 }
 
-const getCurrentBalanceById = async(req, res) =>{
-    try{
-        const {accountId} = req.query;
-    }catch(error){
-        console.error("Erro ao recuperar o balanço atual da conta");
-        res.status(400).json({message: "Erro ao recuperar o balanço atual da conta"})
-    }
-}
-module.exports = {createAccount, updateBalance};
+
+
+
+module.exports = {createAccount, updateBalance, getAccounts};
