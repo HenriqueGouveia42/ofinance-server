@@ -60,17 +60,14 @@ model Transactions {
   paid_out    Boolean
   payDay      DateTime
   description String?  // Opcional
-
   categoryId  Int //Chave estrangeira para a categoria
   accountId   Int
-
   attachment  String?  // Opcional
   fixed       Boolean
   repeat      Boolean
   typeRepeat  String? //Opcional
   remindMe    String? //Opcional
-
-  currency    String
+  currencyId    Int
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
