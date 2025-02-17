@@ -112,11 +112,13 @@ const loginController = async(req, res) =>{
 
             const token = generateToken(user);
 
+            const isProduction = process.env.NODE_ENV === 'production';
+
             //Configura o cookie HttpOnly com o token
             res.cookie("access_token", token, {
                 httpOnly: true,
-                secure: true,
-                sameSite: "Strict",
+                secure: isProduction,
+                sameSite: isProduction ? 'strict' : 'lax', //Mais flexivel em desenvolvimento
                 maxAge: 60 * 60 * 100 //Expira em 01 hora
             });
             return res.status(200).json({message: "Logado com sucesso!"});
@@ -129,8 +131,43 @@ const loginController = async(req, res) =>{
 
 }
 
+const checkAuthStatusController = async(req, res) =>{
+    try{
+        const token = req.cookies.access_token; //Acessa o token do cookie
+        if (!token){
+            return res.status(401).json({message:"Usuario nao autenticado"});
+        }
+        const decoded = jwt.verify(token, process.env.JWT_SECRET); //verifica o token
+
+        return res.status(200).json({
+            message: "Usuario autenticado!", decoded
+        });
+
+    }catch(error){
+        console.error("Erro ao verificar se o usuario está autenticado");
+        return res.status(404).json({message: "Erro ao verificar se o usuario está autenticado. Token invalido ou expirado"});
+    }
+}
+
+const logoutController = async(req, res) =>{
+    try{
+        res.cookie('access_token', '', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'development',
+            sameSite: 'Strict',
+            expires: new Date(0) //Define a data de expiração no passado
+        });
+        res.json({message: "Token JWT enviado via cookie http-only com expiração no passado com sucesso"})
+    }catch(error){
+        console.error("Erro ao enviar token JWT via cookie http only com expiração no passado");
+        res.status(404).json({message: "Erro ao enviar token JWT via cookie http only com expiração no passado"})
+    }
+}
+
 module.exports ={
     signUpController,
     verifyCodeController,
     loginController,
+    checkAuthStatusController,
+    logoutController
 }
