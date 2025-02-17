@@ -152,6 +152,57 @@ const getDefaultCurrencyNameById = async(defaultCurrencyId) =>{
     }
 }
 
+const getAccountsByUserId = async(userId) =>{
+    try{
+        const accounts = await prisma.accounts.findMany({
+            where:{
+                userId: userId,
+            },
+        });
+        return accounts; //Retorna um array vazio se nao houver contas cadastradas 
+    }catch(error){
+        console.error("Erro ao buscar contas do usuario", error);
+        return null; //Retorna null apenas em casos de erro
+    }finally{
+        await prisma.$disconnect();
+    }
+}
+
+const checkAccountId = async(accountId, user_id) =>{
+    try{
+        const account = await prisma.accounts.findUnique({
+            where:{
+                id: accountId,
+            }
+        });
+        return account ? account.userId === user_id : false;
+    }catch(error){
+        console.error("Erro ao verificar se o id da conta é cadastrada e está em nome do referido usuario", error);
+        return false;
+    }
+    
+}
+
+const updateAccountBalance = async(accountId, type, amount) => {
+    try{
+        const updateData =
+            type === "expense"
+            ? {balance: {decrement: amount}}
+            : {balance: {increment: amount}};
+
+        const newBalance = await prisma.accounts.update({
+            where:{id: accountId},
+            data:updateData,
+        });
+
+        return newBalance ? true : false;
+    }catch(error){
+        console.error("Erro ao atualizar o balanço da conta", error);
+        return false;
+    }
+}
+
+
 module.exports = {
     createStagedUser,
     createUser,
@@ -159,5 +210,8 @@ module.exports = {
     verifyCode,
     loginByEmailAndPassword,
     getDefaultCurrencyId,
-    getDefaultCurrencyNameById
+    getDefaultCurrencyNameById,
+    getAccountsByUserId,
+    checkAccountId,
+    updateAccountBalance
 };
