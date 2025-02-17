@@ -1,5 +1,5 @@
 const {prisma} = require('../config/prismaClient');
-const {getDefaultCurrencyId, getDefaultCurrencyNameById} = require('../services/userService');
+const {getDefaultCurrencyId, getDefaultCurrencyNameById, checkAccountId, updateAccountBalance} = require('../services/userService');
 
 const convertToISO = (dateString) =>{
     const date = new Date(dateString);
@@ -7,7 +7,6 @@ const convertToISO = (dateString) =>{
 }
 
 const createTransaction = async (req, res) =>{
-    
     try{
         const {
             amount,
@@ -16,7 +15,7 @@ const createTransaction = async (req, res) =>{
             payDay,
             description,
             category,
-            account,
+            accountId,
             attachment,
             fixed,
             repeat,
@@ -24,24 +23,41 @@ const createTransaction = async (req, res) =>{
             remindMe
         } = req.body; //Acessa diretamente as propriedades de 'req.body'
 
+        const user_id = req.user.id; //Onter user_id do token decodificado
+
         if(!amount || !type || !payDay){
             return res.status(400).json({message: 'Campos obrigatorios estao ausentes!'})
         }
 
+        if (!['revenue', 'expense'].includes(type)){
+            return res.status(400).json({message: "Apenas são permitidos os tipos 'revenue' ou 'expense'"})
+        }
+
         const isoPayDay = convertToISO(payDay.startDate);
 
-        const user_id = req.user.id; //Onter user_id do token decodificado
+        //Validação do accountId passado como argumento        
+        const acc = await checkAccountId(accountId, user_id);
+
+        if(!acc){
+            return res.status(400).json({message: "Conta não existente ou não cadastrada em nome do usuario"});
+        }
+
+        const newBalance = await updateAccountBalance(accountId, type, amount);
+        
+        if(!newBalance){
+            return res.status(404).json({message: "Erro ao atualizar o balaço da conta"});
+        }
 
         const currencyId = await getDefaultCurrencyId(user_id);
         
         const currencyName = await getDefaultCurrencyNameById(currencyId);
-        
+
         const now = new Date();
+
         const createdAt = now;
+
         const updatedAt =  now;
 
-        
-        
         const transaction = await prisma.transactions.create({
             data: {
                 user_id: user_id,
@@ -55,7 +71,7 @@ const createTransaction = async (req, res) =>{
                 payDay: isoPayDay,
                 description: description,
                 category: category,
-                account: account,
+                accountId: accountId,
                 attachment: attachment,
                 fixed: fixed,
                 repeat: repeat,
@@ -64,23 +80,7 @@ const createTransaction = async (req, res) =>{
             },
         });
 
-        if(!transaction.paid_out){
-            try{
-                const unpaidTransaction = await prisma.unpaidTransactions.create({
-                    data:{
-                        userId: user_id,
-                        transactionId: transaction.id,
-                        amount: transaction.amount,
-                        type: transaction.type
-                    }
-                })
-            }catch(error){
-                console.error(`Erro ao criar registro na tabela UnpaidTransactions para transactionId: ${transaction.id}`, error)
-                console.log("Erro ao criar registro na tabela UnpaidTransacations")
-            }
-        }
-        
-        res.status(201).json(transaction);
+        res.status(201).json({message:"Transacao criada com sucesso!"});
     }catch(error){
         console.error("Erro ao criar transacao.", error);
         res.status(500).json({message: "Erro interno ao servidor"});
@@ -145,10 +145,10 @@ const readMonthTransactions = async(req, res) =>{
                 transactionsResult.sumMonthExpense = transaction._sum.amount || 0;
             }
         })
-        res.json(transactionsResult);
+        return res.status(200).json({message: "Dados do mes lidos com sucesso", transactionsResult});
     }catch(error){
         console.error('Erro ao tentar ler transacoes do mes', error);
-        res.status(500).json({error: "Erro ao tentar ler transacao"})
+        return res.status(500).json({error: "Erro ao tentar ler transacao"})
     }    
 }
 
