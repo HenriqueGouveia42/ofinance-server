@@ -36,8 +36,9 @@ model Users {
   transactions Transactions[] // Relacionamento 1 para N com a tabela Transactions
   currencies UsersCurrencies[] @relation("userCurrencies") // Relacionamento 1 para N com a tabela UsersCurrencies
   accounts Accounts[] //Relacionamento 1 para N com a tabela Accounts
-  unpaid_transactions UnpaidTransactions[] //Relacionamento 1 para N com a tabela UnpaidTransactions
+  categories ExpenseAndRevenueCategories[] //Relacionamento 1 para N com a tabela ExpenseAndRevenueCategories
 }
+
 model UsersCurrencies {
   id Int @id @default(autoincrement())
   userId Int
@@ -59,8 +60,10 @@ model Transactions {
   paid_out    Boolean
   payDay      DateTime
   description String?  // Opcional
-  category    String
+
+  categoryId  Int //Chave estrangeira para a categoria
   accountId   Int
+
   attachment  String?  // Opcional
   fixed       Boolean
   repeat      Boolean
@@ -72,22 +75,8 @@ model Transactions {
   updatedAt           DateTime @updatedAt
 
   user Users @relation(fields: [user_id], references: [id]) //Relacionamento com a tabela Users[]
-  unpaidTransactions UnpaidTransactions[] // Relacionamento 1:N com a tabela UnpaidTransactions
-
+  category ExpenseAndRevenueCategories @relation(fields:[categoryId], references: [id])
   
-}
-
-model UnpaidTransactions{
-  id  Int @id @default(autoincrement())
-  userId Int
-  transactionId Int
-  amount Float
-  type String
-
-  user Users @relation(fields: [userId], references: [id])
-  transaction Transactions @relation(fields: [transactionId], references: [id])
-
-  @@unique([userId, transactionId])
 }
 
 model Accounts{
@@ -99,6 +88,21 @@ model Accounts{
   updatedAt DateTime @updatedAt
 
   user Users @relation(fields: [userId], references: [id])
+}
+enum CategoryType{
+  revenue
+  expense
+}
+model ExpenseAndRevenueCategories{
+  id Int @id @default(autoincrement())
+  userId Int
+  type CategoryType
+  name String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user Users @relation(fields: [userId], references: [id])
+  transactions Transactions[]
 }
 
 
