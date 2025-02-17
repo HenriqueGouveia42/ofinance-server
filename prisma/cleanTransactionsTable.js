@@ -3,12 +3,15 @@ const prisma = new PrismaClient();
 
 async function cleanTransactionsTable() {
     try {
-        // Deleta todos os registros da tabela unpaidTransactions, a fim de manter a integidade referencial do banco de dados
-        await prisma.unpaidTransactions.deleteMany();
-
         // Deleta todos os registros da tabela Transactions
         await prisma.transactions.deleteMany();
-        console.log('Tabela Transactions limpa com sucesso!');
+
+        await prisma.accounts.updateMany({
+            data:{
+                balance: 0
+            }
+        }),
+        console.log('Tabela Transactions e balanços das contas limpos com sucesso!');
     } catch (error) {
         console.error('Erro ao limpar a tabela Transactions:', error);
     } finally {
