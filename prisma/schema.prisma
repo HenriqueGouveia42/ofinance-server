@@ -60,7 +60,7 @@ model Transactions {
   payDay      DateTime
   description String?  // Opcional
   category    String
-  account     String
+  accountId   Int
   attachment  String?  // Opcional
   fixed       Boolean
   repeat      Boolean

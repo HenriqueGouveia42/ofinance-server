@@ -5,8 +5,11 @@ const dotenv = require('dotenv');
 
 const signUpRoutes = require('./src/routes/signUpRoutes');
 const loginRoutes = require('./src/routes/loginRoutes');
+const logoutRoutes = require('./src/routes/logoutRoutes');
 const transactionRoutes = require('./src/routes/transactionsRoutes');
-const accountsRoutes = require('./src/routes/accountsRoutes')
+const accountsRoutes = require('./src/routes/accountsRoutes');
+const categoriesRoutes = require('./src/routes/categoriesRoutes');
+
 
 const authMiddleware = require('./src/middlewares/authMiddleware');
 
@@ -18,13 +21,18 @@ app.use(express.json()); //Middleware para permitir JSON no corpo da requisiçã
 
 app.use(cookieParser()); //Middleware para permitir o uso de cookies
 
-app.use(cors()); // Habilita CORS para permitir requisições de outras origens
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true, // Permite o envio de cookies
+})); // Habilita CORS para permitir requisições de outras origens
 
 app.use('/auth/signup', signUpRoutes); //Registro de usuarios
 app.use('/auth/login', loginRoutes); // Login
+app.use('/auth/logout', logoutRoutes) //Logout - Remover cookies http only
 
 app.use('/transaction', authMiddleware, transactionRoutes);
 app.use('/accounts', authMiddleware, accountsRoutes);
+app.use('/category', authMiddleware, categoriesRoutes)
 
 const PORT = process.env.PORT || 5000; // Iniciar o servidor
 app.listen(PORT, () => {
