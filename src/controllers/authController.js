@@ -35,7 +35,7 @@ const signUpController = async (req, res) => {
             createdAt: createdAt,
             expiresAt: expiresAt,
             verificationCode: verificationCode
-        })
+        });
 
         if (newStagedUser.error) {
             return res.status(400).json({ message: newStagedUser.error + "Erro ao criar um novo registro em stagedUsers" });
@@ -140,7 +140,7 @@ const checkAuthStatusController = async(req, res) =>{
         const decoded = jwt.verify(token, process.env.JWT_SECRET); //verifica o token
 
         return res.status(200).json({
-            message: "Usuario autenticado!", decoded
+            message: "Usuario autenticado!"
         });
 
     }catch(error){
