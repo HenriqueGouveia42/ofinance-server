@@ -1,0 +1,82 @@
+const {prisma} = require('../config/prismaClient');
+
+const createCurrency = async(userId, currencyName,) =>{
+    try{
+        const currency = await prisma.usersCurrencies.create({
+            data:{
+                userId: userId,
+                name: currencyName,
+                symbol: ''
+            }
+        });
+        if(currency){
+            return true;
+        }else{
+            return false;
+        }
+    }catch(error){
+        console.error("Erro ao tentar criar nova moeda", error);
+        return false;
+    }
+}
+
+const checkIfCurrencyAlreadyExists = async(name, userId) =>{
+    try{
+        const currencyAlreadyExists = await prisma.usersCurrencies.findFirst({
+            where:{
+                name,
+                userId
+            }
+        });
+
+        if(currencyAlreadyExists){
+            return true;
+        }else{
+            return false;
+        }
+    }catch(error){
+        console.error("Erro ao checar a moeda já existe para esse usuario", error);
+        return null;
+    }
+}
+
+const updateCurrency = async(userId, newDefaultCurrencyId) =>{
+    try{
+
+        //Verifica se o atributo 'newDefaultCurrencyId' realmente pertence ao usuario com id = 'userId'
+        const currencyIdExists = await prisma.usersCurrencies.findFirst({
+            where:{
+                id: newDefaultCurrencyId,
+                userId: userId
+            }
+        });
+        if(!currencyIdExists){
+            return null;
+        }
+
+        const currency = await prisma.users.update({
+            where:{
+                id: userId
+            },
+            data:{
+                defaultCurrencyId: newDefaultCurrencyId
+            }
+        })
+        if(!currency){
+            return false;
+        }else{
+            return true;
+        }
+    }catch(error){
+        console.log("Erro ao tentar atualizar o id da moeda padrao");
+        return null;
+    }
+}
+
+
+
+module.exports = {
+    createCurrency,
+    checkIfCurrencyAlreadyExists,
+    updateCurrency
+}
