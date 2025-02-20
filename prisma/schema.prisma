@@ -13,93 +13,101 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model stagedUsers{
-  id                  Int       @id @default(autoincrement())
-  name                String
-  email               String    @unique
-  password            String
-  createdAt           DateTime  @default(now())
-  expiresAt           DateTime
-  verificationCode    String
+model stagedUsers {
+  id               Int      @id @default(autoincrement())
+  name             String
+  email            String   @unique
+  password         String
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime
+  verificationCode String
 }
 
-model Users { 
-  id Int @id @default(autoincrement())
-  name String
-  email String @unique
-  password String
-  createdAt DateTime @default(now())
+model Users {
+  id                Int      @id @default(autoincrement())
+  name              String
+  email             String   @unique
+  password          String
+  createdAt         DateTime @default(now())
+  defaultCurrencyId Int?     @unique // Chave estrangeira opcional para a moeda padrão
 
-  defaultCurrencyId Int?  @unique // Chave estrangeira opcional para a moeda padrão
-  defaultCurrency UsersCurrencies? @relation("defaultCurrency", fields: [defaultCurrencyId], references: [id])
-
-  transactions Transactions[] // Relacionamento 1 para N com a tabela Transactions
-  currencies UsersCurrencies[] @relation("userCurrencies") // Relacionamento 1 para N com a tabela UsersCurrencies
-  accounts Accounts[] //Relacionamento 1 para N com a tabela Accounts
-  categories ExpenseAndRevenueCategories[] //Relacionamento 1 para N com a tabela ExpenseAndRevenueCategories
+  defaultCurrency UsersCurrencies?              @relation("defaultCurrency", fields: [defaultCurrencyId], references: [id])
+  transactions    Transactions[] // Relacionamento 1 para N com a tabela Transactions
+  currencies      UsersCurrencies[]             @relation("userCurrencies") // Relacionamento 1 para N com a tabela UsersCurrencies
+  accounts        Accounts[] //Relacionamento 1 para N com a tabela Accounts
+  categories      ExpenseAndRevenueCategories[] //Relacionamento 1 para N com a tabela ExpenseAndRevenueCategories
 }
 
 model UsersCurrencies {
-  id Int @id @default(autoincrement())
-  userId Int
-  name String
-  symbol String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  users Users @relation("userCurrencies", fields: [userId], references: [id])
-  defaultForUser Users? @relation("defaultCurrency")
-}
-
-model Transactions {
-  id          Int      @id @default(autoincrement())
-  user_id     Int
-
-  amount      Float
-  type        String
-  paid_out    Boolean
-  payDay      DateTime
-  description String?  // Opcional
-  categoryId  Int //Chave estrangeira para a categoria
-  accountId   Int
-  attachment  String?  // Opcional
-  fixed       Boolean
-  repeat      Boolean
-  typeRepeat  String? //Opcional
-  remindMe    String? //Opcional
-  currencyId    Int
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  user Users @relation(fields: [user_id], references: [id]) //Relacionamento com a tabela Users[]
-  category ExpenseAndRevenueCategories @relation(fields:[categoryId], references: [id])
-  
-}
-
-model Accounts{
-  id Int @id @default(autoincrement())
-  userId Int
-  name String
-  balance Float
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  name      String
+  symbol    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user Users @relation(fields: [userId], references: [id])
+  users          Users          @relation("userCurrencies", fields: [userId], references: [id])
+  defaultForUser Users?         @relation("defaultCurrency")
+  Transactions   Transactions[]
+
+  @@unique([userId, name]) //Reforça que um usuário não pode criar duas moedas com o mesmo nome
 }
-enum CategoryType{
+
+enum TransactionType{
   revenue
   expense
 }
-model ExpenseAndRevenueCategories{
-  id Int @id @default(autoincrement())
-  userId Int
-  type CategoryType
-  name String
+model Transactions {
+  id          Int      @id @default(autoincrement())
+  amount      Float
+  type        TransactionType
+  paid_out    Boolean
+  payDay      DateTime
+  description String?
+  attachment  String?
+  fixed       Boolean
+  repeat      Boolean
+  typeRepeat  String?
+  remindMe    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user_id    Int //Chave estrangeira para o usuario
+  categoryId Int //Chave estrangeira para a categoria
+  accountId  Int //Chave estrangeira para a conta
+  currencyId Int //Chave estrangeira para a moeda utilizada
+
+  user     Users                       @relation(fields: [user_id], references: [id]) //Relacionamento com a tabela Users[]
+  category ExpenseAndRevenueCategories @relation(fields: [categoryId], references: [id]) //Relacionamento com a tabela ExpenseAndRevenueCategories[]
+  account  Accounts                    @relation(fields: [accountId], references: [id]) //Relacionamento com a tabela Accounts[]
+  currency UsersCurrencies             @relation(fields: [currencyId], references: [id])
+}
+
+model Accounts {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  name      String
+  balance   Float
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user Users @relation(fields: [userId], references: [id])
-  transactions Transactions[]
+  user         Users          @relation(fields: [userId], references: [id])
+  Transactions Transactions[]
 }
 
+enum CategoryType {
+  revenue
+  expense
+}
 
+model ExpenseAndRevenueCategories {
+  id        Int          @id @default(autoincrement())
+  userId    Int
+  type      CategoryType
+  name      String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  user         Users          @relation(fields: [userId], references: [id])
+  transactions Transactions[]
+}
