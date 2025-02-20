@@ -110,4 +110,6 @@ model ExpenseAndRevenueCategories {
 
   user         Users          @relation(fields: [userId], references: [id])
   transactions Transactions[]
+
+  @@index([type]) //Indice na colune 'type', a fim de melhorar a performance de consultas que filtram pelo campo 'type'
 }
