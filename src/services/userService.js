@@ -9,6 +9,8 @@ const {prisma} = require('../config/prismaClient');
 //Criar usuario temporario na tabela stagedUsed
 const createStagedUser = async ({ name, email, password, createdAt, expiresAt, verificationCode }) => {
     try {
+        const test = {name, email, password, createdAt, expiresAt, verificationCode}
+        
         const user = await prisma.stagedUsers.create({
             data:{ 
                 name: name,
@@ -126,29 +128,25 @@ try{
     console.error(error);
     console.log("Erro ao recuperar o defaultCurrencyId do usuario")
     throw error;
-}finally{
-    await prisma.$disconnect();
 }
 }
 
 //Retorna o "name" do modelo "UsersCurrencies" de um determinado "defaultCurrencyId"
-const getDefaultCurrencyNameById = async(defaultCurrencyId) =>{
+const getDefaultCurrencyById = async(defaultCurrencyId) =>{
     try{
         const currency = await prisma.usersCurrencies.findUnique({
             where: {id: defaultCurrencyId},
-            select: {name: true},
         });
 
         if(!currency){
             throw new Error('Moeda nao encontrada');
         }
-        return currency.name;
+        
+        return currency;
     }catch(error){
         console.error(error);
         console.log("Erro ao recuperar o 'name' da moeda pelo id");
         throw error;
-    }finally{
-        await prisma.$disconnect();
     }
 }
 
@@ -163,8 +161,20 @@ const getAccountsByUserId = async(userId) =>{
     }catch(error){
         console.error("Erro ao buscar contas do usuario", error);
         return null; //Retorna null apenas em casos de erro
-    }finally{
-        await prisma.$disconnect();
+    }
+}
+
+const getCurrenciesByUserId = async(userId) =>{
+    try{
+        const currencies = await prisma.usersCurrencies.findMany({
+            where:{
+                userId: userId
+            },
+        });
+        return currencies;
+    }catch(error){
+        console.error("Erro ao retornar moedas cadadastradas do usuario: ", error);
+        return null;
     }
 }
 
@@ -202,6 +212,46 @@ const updateAccountBalance = async(accountId, type, amount) => {
     }
 }
 
+const getCategoriesById = async(userId) =>{
+    try{
+        const categories = await prisma.expenseAndRevenueCategories.findMany({
+            select:{
+                id: true,
+                name: true,
+                type: true
+            },
+            where:{
+                userId: userId
+            }
+        });
+
+        return categories.length == 0 ? [] : categories;
+    }catch(error){
+        console.error("Erro ao buscar categorias de receitas e despesas do usuario: ", error);
+        return false;
+    }
+}
+
+const checkIfAccountAlreadyExists = async(accountName, userId) =>{
+    try{
+        const account = await prisma.accounts.findFirst({
+            where:{
+                name: accountName,
+                userId: userId
+            }
+        });
+        
+        if(account){
+            return true
+        }else{
+            return false
+        }
+    }catch(error){
+        console.error("Erro ao checar se a conta já existe", error);
+        return null;
+    }
+}
+
 
 module.exports = {
     createStagedUser,
@@ -210,8 +260,11 @@ module.exports = {
     verifyCode,
     loginByEmailAndPassword,
     getDefaultCurrencyId,
-    getDefaultCurrencyNameById,
+    getDefaultCurrencyById,
     getAccountsByUserId,
     checkAccountId,
-    updateAccountBalance
+    updateAccountBalance,
+    getCategoriesById,
+    getCurrenciesByUserId,
+    checkIfAccountAlreadyExists
 };
