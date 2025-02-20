@@ -1,12 +1,22 @@
 const {prisma} = require('../config/prismaClient');
-const { getAccountsByUserId } = require('../services/userService');
+const { getAccountsByUserId, checkIfAccountAlreadyExists } = require('../services/userService');
 
 const createAccount = async(req, res) =>{
     try{
         const {accountName} = req.body;
-        if(!accountName || typeof accountName != "string" ){
-            return res.status(400).json({error: "Nome da conta nulo ou não é uma string!"})
+
+        //Verifica se o nome é válido
+        if(typeof accountName !== "string" || !/^[a-zA-Z]/.test(accountName)){
+            return res.status(400).json({message: "Nome invalido. Deve ser uma string e comecar com uma letra"})
         }
+
+        //Verifica se já não existe
+        const accountAlreadyExists = await checkIfAccountAlreadyExists(accountName, req.user.id);
+
+        if(accountAlreadyExists){
+            return res.status(400).json({message: "Usuario já tem uma conta com esse nome!"})
+        }
+
         const account = await prisma.accounts.create({
             data:{
                 userId: req.user.id,
@@ -14,6 +24,7 @@ const createAccount = async(req, res) =>{
                 balance: 0
             }
         });
+
         return res.status(201).json({message:"Conta criada com sucesso!"})
     }catch(error){
         console.error("Erro ao criar nova conta: ", error);
