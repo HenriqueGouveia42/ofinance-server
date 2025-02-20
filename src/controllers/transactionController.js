@@ -1,5 +1,5 @@
 const {prisma} = require('../config/prismaClient');
-const {getDefaultCurrencyId, getDefaultCurrencyNameById, checkAccountId, updateAccountBalance} = require('../services/userService');
+const {getDefaultCurrencyId, getDefaultCurrencyById, checkAccountId, updateAccountBalance} = require('../services/userService');
 
 const convertToISO = (dateString) =>{
     const date = new Date(dateString);
@@ -12,23 +12,30 @@ const createTransaction = async (req, res) =>{
             amount,
             type,
             paid_out,
-            payDay,
             description,
-            category,
+            payDay,
+
+            categoryId,
             accountId,
+
             attachment,
             fixed,
             repeat,
             typeRepeat,
-            remindMe
+            remindMe,
+
+            currencyId
         } = req.body; //Acessa diretamente as propriedades de 'req.body'
+        
 
         const user_id = req.user.id; //Onter user_id do token decodificado
 
+        //Verifica a presença de campos obrigatorios
         if(!amount || !type || !payDay){
             return res.status(400).json({message: 'Campos obrigatorios estao ausentes!'})
         }
 
+        //Verifica a validade do tipo de transacao enviado
         if (!['revenue', 'expense'].includes(type)){
             return res.status(400).json({message: "Apenas são permitidos os tipos 'revenue' ou 'expense'"})
         }
@@ -37,48 +44,42 @@ const createTransaction = async (req, res) =>{
 
         //Validação do accountId passado como argumento        
         const acc = await checkAccountId(accountId, user_id);
-
         if(!acc){
             return res.status(400).json({message: "Conta não existente ou não cadastrada em nome do usuario"});
         }
 
+        //Atualização do balanço da conta
         const newBalance = await updateAccountBalance(accountId, type, amount);
-        
         if(!newBalance){
             return res.status(404).json({message: "Erro ao atualizar o balaço da conta"});
         }
 
-        const currencyId = await getDefaultCurrencyId(user_id);
-        
-        const currencyName = await getDefaultCurrencyNameById(currencyId);
-
         const now = new Date();
-
         const createdAt = now;
-
         const updatedAt =  now;
 
-        const transaction = await prisma.transactions.create({
+        const transaction = await prisma.transactions.create({ 
             data: {
-                user_id: user_id,
-                currency: currencyName,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                
                 amount: amount,
                 type: type,
                 paid_out: paid_out,
-                payDay: isoPayDay,
                 description: description,
-                category: category,
+                payDay: isoPayDay,
                 accountId: accountId,
                 attachment: attachment,
                 fixed: fixed,
                 repeat: repeat,
                 typeRepeat: typeRepeat,
-                remindMe: remindMe
-            },
+                remindMe: remindMe,
+                currencyId: currencyId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+
+                user: {connect: { id: user_id }},
+                category: { connect: { id: categoryId } }  // Use 'category' aqui
+            }
         });
+        
 
         res.status(201).json({message:"Transacao criada com sucesso!"});
     }catch(error){
