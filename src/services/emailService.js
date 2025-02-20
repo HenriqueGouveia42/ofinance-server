@@ -3,7 +3,9 @@
 
 const nodemailer = require("nodemailer");
 
+
 //Configuracao do transporte de e-mail com MailTrap
+
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
     port: process.env.EMAIL_PORT,
