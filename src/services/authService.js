@@ -4,11 +4,12 @@ const jwt = require('jsonwebtoken');
 const generateToken = (user) =>{
     const payLoad ={
         id: user.id,
-        name: user.name,
-        email: user.email,
         defaultCurrencyId: user.defaultCurrencyId
     }
-    return jwt.sign(payLoad, process.env.JWT_SECRET, {expiresIn: '1h'});
+    return jwt.sign(payLoad, process.env.JWT_SECRET,{
+        expiresIn: '3h',
+        }
+    );
 }
 
 module.exports = {generateToken}
