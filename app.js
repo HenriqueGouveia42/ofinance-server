@@ -9,6 +9,8 @@ const logoutRoutes = require('./src/routes/logoutRoutes');
 const transactionRoutes = require('./src/routes/transactionsRoutes');
 const accountsRoutes = require('./src/routes/accountsRoutes');
 const categoriesRoutes = require('./src/routes/categoriesRoutes');
+const userRoutes = require('./src/routes/userRoutes.js');
+const currencyRoutes = require('./src/routes/currencyRoutes.js')
 
 
 const authMiddleware = require('./src/middlewares/authMiddleware');
@@ -28,11 +30,12 @@ app.use(cors({
 
 app.use('/auth/signup', signUpRoutes); //Registro de usuarios
 app.use('/auth/login', loginRoutes); // Login
-app.use('/auth/logout', logoutRoutes) //Logout - Remover cookies http only
-
+app.use('/auth/logout', logoutRoutes); //Logout - Remover cookies http only
+app.use('/user', authMiddleware, userRoutes);
 app.use('/transaction', authMiddleware, transactionRoutes);
 app.use('/accounts', authMiddleware, accountsRoutes);
-app.use('/category', authMiddleware, categoriesRoutes)
+app.use('/category', authMiddleware, categoriesRoutes);
+app.use('/currency', authMiddleware, currencyRoutes);
 
 const PORT = process.env.PORT || 5000; // Iniciar o servidor
 app.listen(PORT, () => {
