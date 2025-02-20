@@ -20,7 +20,27 @@ const createCategory = async(name, type, userId) =>{
     }
 }
 
+const checkIfCategoryAlreadyExists = async(name, userId, type) =>{
+    try{
+        const categoryAlreadyExists = await prisma.expenseAndRevenueCategories.findFirst({
+            where:{
+                name,
+                userId,
+                type
+            }
+        });
+        if(categoryAlreadyExists){
+            return true
+        }else{
+            return false
+        }
+    }catch(error){
+        console.error("Erro ao verificar se a categoria criada é válida");
+        return null;
+    }
+}
 
 module.exports ={
     createCategory,
+    checkIfCategoryAlreadyExists
 }
