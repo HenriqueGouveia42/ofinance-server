@@ -1,3 +1,5 @@
+require('dotenv').config({path:require('path').resolve(__dirname, '../.env')});
+
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
@@ -10,7 +12,8 @@ async function cleanTransactionsTable() {
             data:{
                 balance: 0
             }
-        }),
+        });
+
         console.log('Tabela Transactions e balanços das contas limpos com sucesso!');
     } catch (error) {
         console.error('Erro ao limpar a tabela Transactions:', error);
