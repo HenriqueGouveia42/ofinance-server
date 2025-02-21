@@ -13,4 +13,4 @@ async function cleanAccountsTable(){
     }
 }
 
-cleanAccountsTable();
+module.exports = {cleanAccountsTable}
