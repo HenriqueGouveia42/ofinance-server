@@ -39,7 +39,7 @@ const getUserData = async(req, res) =>{
         userData.accounts = accounts;
         userData.categories = categories;
 
-        return res.status(201).json(userData);
+        return res.status(200).json(userData);
     }catch(error){
         console.error("Erro ao buscar os dados cadastrados do usuario (Contas, moedas e categorias de receitas e despesas): ", error);
         return res.status(404).json({message: "Erro ao buscar os dados cadastrados do usuario"});
