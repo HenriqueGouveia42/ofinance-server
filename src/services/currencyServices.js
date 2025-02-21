@@ -1,12 +1,12 @@
 const {prisma} = require('../config/prismaClient');
 
-const createCurrency = async(userId, currencyName,) =>{
+const createCurrency = async(userId, currencyName, currencySymbol) =>{
     try{
         const currency = await prisma.usersCurrencies.create({
             data:{
                 userId: userId,
                 name: currencyName,
-                symbol: ''
+                symbol: currencySymbol
             }
         });
         if(currency){
