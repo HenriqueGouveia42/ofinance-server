@@ -2,9 +2,22 @@ const {createCurrency, checkIfCurrencyAlreadyExists, updateCurrency} = require('
 
 const newCurrency = async(req, res) =>{
     try{
-        const {currencyName} = req.body;
+        const {currencyName, currencySymbol = ''} = req.body;
 
-        //Verifica se o nome é válido
+        //'currnecyName' e 'currencySymbol' não são variaveis independentes, mas sim valores
+        //extraídos do  OBJETO req.body através da desestruturação, não existindo
+        //como variaveis independents
+
+        //Por esse motivo, caso o client não envie um 'currencySymbol', ele assume um valor padrao
+        //de string vazia dentro da propria desestruturacao
+
+        console.log(typeof currencySymbol);
+
+        if(typeof currencySymbol === "undefined"){
+            currencySymbol = ''
+        }
+
+        //Verifica se o currencyName é válido
         if(typeof currencyName !== "string" || !/^[a-zA-Z]/.test(currencyName)){
             return res.status(400).json({message: "Nome invalido. Deve ser uma string e comecar com uma letra"})
         }
@@ -16,7 +29,14 @@ const newCurrency = async(req, res) =>{
             return res.status(400).json({message: "Usuario já possui uma conta com esse nome!"});
         }
 
-        const currency = await createCurrency(req.user.id, currencyName);
+        //Verifica se o currencySymbol é válido, ou seja, se é uma string
+        if(typeof currencySymbol !== "string"){
+            return res.status(400).json({message: "Nome do simbolo invalido. Deve ser uma string"})
+        }
+
+        
+
+        const currency = await createCurrency(req.user.id, currencyName, currencySymbol);
 
         if(currency){
             return res.status(201).json({message: "Moeda criada com sucesso!"});
