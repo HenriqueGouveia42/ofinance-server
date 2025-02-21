@@ -11,8 +11,6 @@ const newCurrency = async(req, res) =>{
         //Por esse motivo, caso o client não envie um 'currencySymbol', ele assume um valor padrao
         //de string vazia dentro da propria desestruturacao
 
-        console.log(typeof currencySymbol);
-
         if(typeof currencySymbol === "undefined"){
             currencySymbol = ''
         }
