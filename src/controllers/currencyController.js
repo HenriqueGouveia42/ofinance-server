@@ -1,4 +1,12 @@
-const {createCurrency, checkIfCurrencyAlreadyExists, updateCurrency} = require('../services/currencyServices')
+const {
+        createCurrency,
+        checkIfCurrencyAlreadyExists,
+        updateCurrency,
+        checkIfCurrencyBelongsToUser,
+        checkIfRecurringTransactionsExists,
+        deleteAllTransactionsForCurrency,
+        dellCurrency
+    } = require('../services/currencyServices')
 
 const newCurrency = async(req, res) =>{
     try{
@@ -47,7 +55,7 @@ const newCurrency = async(req, res) =>{
     }
 }
 
-const updateDefaultCurrency = async(req, res) =>{
+const updateDefaultCurrency = async (req, res) =>{
 
     const {newDefaultCurrencyId} = req.body;
 
@@ -60,7 +68,49 @@ const updateDefaultCurrency = async(req, res) =>{
     return res.status(200).json({message: "id da moeda padrao alterado com sucesso"});
 }
 
+const deleteCurrency = async (req, res) =>{
+
+    const {currencyId} = req.body;
+
+    //Passo 1: Verifica se o currnecyId é um numero
+    if(typeof currencyId !== "number"){
+        return res.status(404).json({message: "currencyId invalido. Deve ser do tipo 'Number'"})
+    }
+    
+     //Passo 2: Verifica se existe essa moeda especifica para esse usuario especifico
+    const belongsToUser = await checkIfCurrencyBelongsToUser(req.user.id, currencyId);
+
+    if(!belongsToUser){
+        return res.status(404).json({message: "Este usuario nao possui esta moeda cadastrada"})
+    }
+
+    //Passo 3: Verifica se existem transacoes recorrentes associadas a esta moeda
+    const recurringTransactions = await checkIfRecurringTransactionsExists(currencyId);
+
+    if(recurringTransactions){
+        return res.status(404).json({message: "Existem transacoes recorrentes para essa moeda. Apague as transações recorrentes ou transfira as transações para outra moeda"})
+    }
+
+    //Passo 4: Para deletar uma moeda devemos, primeiro, deletar todas as transações associadas a essa moeda
+    const transactionsDell = await deleteAllTransactionsForCurrency(currencyId)
+
+    if(!transactionsDell){
+        return res.status(404).json({message: "Erro ao deletar as transacoes relacionadas a esta moeda"})
+    }
+
+    //Passo 5: Agora que as transações relacionadas a essa moeda foram removidas, podemos deletar a moeda propriamente dita, mantendo assim a integridade relacional do banco de dados
+    const dellCurr = await dellCurrency(currencyId);
+
+    if(!dellCurr){
+        return res.status(404).json({message: "Erro ao deletar moeda"});
+    }
+
+    return res.status(201).json({message: "Moeda deletada com sucesso"});
+    
+}
+
 module.exports = {
     newCurrency,
-    updateDefaultCurrency
+    updateDefaultCurrency,
+    deleteCurrency
 }
