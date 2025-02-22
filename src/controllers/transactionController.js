@@ -1,5 +1,6 @@
 const {prisma} = require('../config/prismaClient');
-const {getDefaultCurrencyId, getDefaultCurrencyById, checkAccountId, updateAccountBalance} = require('../services/userService');
+const {checkAccountId, updateAccountBalance} = require('../services/userService');
+const {checkIfTransactionTypeMatchesToCategoryType} = require('../services/transactionService')
 
 const convertToISO = (dateString) =>{
     const date = new Date(dateString);
@@ -12,24 +13,18 @@ const createTransaction = async (req, res) =>{
             amount,
             type,
             paid_out,
-            description,
             payDay,
-
-            categoryId,
-            accountId,
-
+            description,
             attachment,
             fixed,
             repeat,
             typeRepeat,
             remindMe,
-
+            categoryId,
+            accountId,
             currencyId
-        } = req.body; //Acessa diretamente as propriedades de 'req.body'
+        } = req.body;
         
-
-        const user_id = req.user.id; //Onter user_id do token decodificado
-
         //Verifica a presença de campos obrigatorios
         if(!amount || !type || !payDay){
             return res.status(400).json({message: 'Campos obrigatorios estao ausentes!'})
@@ -40,12 +35,18 @@ const createTransaction = async (req, res) =>{
             return res.status(400).json({message: "Apenas são permitidos os tipos 'revenue' ou 'expense'"})
         }
 
+        const isTransactionsTypeCorrect = await checkIfTransactionTypeMatchesToCategoryType(type, categoryId);
+
+        if(!isTransactionsTypeCorrect){
+            return res.status(404).json({message: "Tipo da transacao não bate com a categoria escolhida"})
+        }
+
         const isoPayDay = convertToISO(payDay.startDate);
 
         //Validação do accountId passado como argumento        
-        const acc = await checkAccountId(accountId, user_id);
+        const acc = await checkAccountId(accountId, req.user.id);
         if(!acc){
-            return res.status(400).json({message: "Conta não existente ou não cadastrada em nome do usuario"});
+            return res.status(400).json({message: "Conta não existente, não cadastrada em nome do usuario ou do tipo incorreto"});
         }
 
         //Atualização do balanço da conta
@@ -63,24 +64,23 @@ const createTransaction = async (req, res) =>{
                 amount: amount,
                 type: type,
                 paid_out: paid_out,
-                description: description,
                 payDay: isoPayDay,
-                accountId: accountId,
+                description: description,
                 attachment: attachment,
                 fixed: fixed,
                 repeat: repeat,
                 typeRepeat: typeRepeat,
                 remindMe: remindMe,
-                currencyId: currencyId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
 
-                user: {connect: { id: user_id }},
-                category: { connect: { id: categoryId } }  // Use 'category' aqui
+                userId: req.user.id, 
+                categoryId: categoryId,
+                accountId: accountId,
+                currencyId: currencyId,
             }
         });
         
-
         res.status(201).json({message:"Transacao criada com sucesso!"});
     }catch(error){
         console.error("Erro ao criar transacao.", error);
@@ -155,7 +155,8 @@ const readMonthTransactions = async(req, res) =>{
 
 const readUnpaidTransactions = async(req, res) =>{
     try{
-        //
+        const userId = req.user.id;
+        
     }catch(error){
         console.error(error);
         console.log("Erro ao tentar ler as transacoes nao pagas");
@@ -163,4 +164,13 @@ const readUnpaidTransactions = async(req, res) =>{
     }
 }
 
-module.exports = { createTransaction, readMonthTransactions, readUnpaidTransactions };
+const getAllTranscation = async(req, res) =>{
+    try{
+        return res.status(201).json({message: "Rota funcionando!"})
+    }catch(error){
+        console.error("Erro ao tentar buscar todas as transacoes do usuario")
+        return res.status(404).json({message: "Erro"})
+    }
+}
+
+module.exports = { createTransaction, readMonthTransactions, readUnpaidTransactions, getAllTranscation };
