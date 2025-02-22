@@ -40,6 +40,23 @@ const checkIfCurrencyAlreadyExists = async(name, userId) =>{
     }
 }
 
+const checkIfCurrencyBelongsToUser = async(userId, currencyId) => {
+    try{
+        const currencyExists = await prisma.usersCurrencies.findFirst({
+            where:{
+                userId: userId,
+                id: currencyId
+            }
+        });
+
+        return currencyExists ? true : false
+
+    }catch(error){
+        console.error("Erro ao checar se a moeda pertence ao usuario");
+        return null;
+    }
+}
+
 const updateCurrency = async(userId, newDefaultCurrencyId) =>{
     try{
 
@@ -73,10 +90,57 @@ const updateCurrency = async(userId, newDefaultCurrencyId) =>{
     }
 }
 
+const checkIfRecurringTransactionsExists = async (currencyId) =>{
+    try{
+        const reccuringTransactionsExists = await prisma.transactions.findFirst({
+            where:{
+                currencyId: currencyId,
+                repeat: true
+            }
+        })
+
+        return reccuringTransactionsExists ? true : false
+    }catch(error){
+        console.error("Erro ao checar se existem transacoes recorrentes associadas a essa moeda")
+        return null;
+    }
+}
+
+const deleteAllTransactionsForCurrency = async(currencyId) =>{
+    try{
+        const dell = await prisma.transactions.deleteMany({
+            where:{
+                currencyId: currencyId
+            }
+        });
+        return dell ? true : false
+    }catch(error){
+        console.error("Erro ao tentar deletar todas as transacoes relacionadas a uma determinada moeda");
+        return null;
+    }
+}
+
+const dellCurrency = async (currencyId) =>{
+    try{
+        const dCurr = await prisma.usersCurrencies.delete({
+            where:{
+                id: currencyId
+            }
+        });
+        return dCurr ? true : false
+    }catch(error){
+        console.error("Erro ao tentar deletar moeda");
+        return null;
+    }
+}
 
 
 module.exports = {
     createCurrency,
     checkIfCurrencyAlreadyExists,
-    updateCurrency
+    checkIfCurrencyBelongsToUser,
+    updateCurrency,
+    checkIfRecurringTransactionsExists,
+    deleteAllTransactionsForCurrency,
+    dellCurrency
 }
