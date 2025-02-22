@@ -156,7 +156,7 @@ const readMonthTransactions = async(req, res) =>{
 const readUnpaidTransactions = async(req, res) =>{
     try{
         const userId = req.user.id;
-        
+
     }catch(error){
         console.error(error);
         console.log("Erro ao tentar ler as transacoes nao pagas");
@@ -164,7 +164,7 @@ const readUnpaidTransactions = async(req, res) =>{
     }
 }
 
-const getAllTranscation = async(req, res) =>{
+const getAllTranscations = async(req, res) =>{
     try{
         return res.status(201).json({message: "Rota funcionando!"})
     }catch(error){
@@ -173,4 +173,4 @@ const getAllTranscation = async(req, res) =>{
     }
 }
 
-module.exports = { createTransaction, readMonthTransactions, readUnpaidTransactions, getAllTranscation };
+module.exports = { createTransaction, readMonthTransactions, readUnpaidTransactions, getAllTranscations };
