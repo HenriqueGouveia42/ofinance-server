@@ -72,12 +72,12 @@ model Transactions {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user_id    Int //Chave estrangeira para o usuario
+  userId    Int //Chave estrangeira para o usuario
   categoryId Int //Chave estrangeira para a categoria
   accountId  Int //Chave estrangeira para a conta
   currencyId Int //Chave estrangeira para a moeda utilizada
 
-  user     Users                       @relation(fields: [user_id], references: [id]) //Relacionamento com a tabela Users[]
+  user     Users                       @relation(fields: [userId], references: [id]) //Relacionamento com a tabela Users[]
   category ExpenseAndRevenueCategories @relation(fields: [categoryId], references: [id]) //Relacionamento com a tabela ExpenseAndRevenueCategories[]
   account  Accounts                    @relation(fields: [accountId], references: [id]) //Relacionamento com a tabela Accounts[]
   currency UsersCurrencies             @relation(fields: [currencyId], references: [id])
