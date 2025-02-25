@@ -1,9 +1,11 @@
 const {cleanAccountsTable} = require('./cleanAccountsTable');
 const {cleanCategoriesTable} = require('./cleanCategoriesTable');
 const {cleanCurrenciesTable} = require('./cleanCurrenciesTable');
+const {cleanTransactionsTable} = require('./cleanTransactionsTable');
 
 async function cleanAllUsersData(){
     try{
+        await cleanTransactionsTable();
         await cleanAccountsTable();
         await cleanCategoriesTable();
         await cleanCurrenciesTable();
