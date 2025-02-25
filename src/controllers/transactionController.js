@@ -164,7 +164,7 @@ const readUnpaidTransactions = async(req, res) =>{
     }
 }
 
-const getAllTranscations = async(req, res) =>{
+const getAllTranscations = async (req, res) =>{
     try{
         return res.status(201).json({message: "Rota funcionando!"})
     }catch(error){
