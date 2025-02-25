@@ -19,7 +19,7 @@ const checkIfTransactionTypeMatchesToCategoryType = async (TransactionType, Cate
     }
 }
 
-const getAllTranscations = async ()
+//const getAllTranscations = async ()
 module.exports ={
     checkIfTransactionTypeMatchesToCategoryType
 }
