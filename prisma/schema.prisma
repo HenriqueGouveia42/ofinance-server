@@ -36,6 +36,8 @@ model Users {
   currencies      UsersCurrencies[]             @relation("userCurrencies") // Relacionamento 1 para N com a tabela UsersCurrencies
   accounts        Accounts[] //Relacionamento 1 para N com a tabela Accounts
   categories      ExpenseAndRevenueCategories[] //Relacionamento 1 para N com a tabela ExpenseAndRevenueCategories
+
+  @@index([id])
 }
 
 model UsersCurrencies {
@@ -51,6 +53,7 @@ model UsersCurrencies {
   Transactions   Transactions[]
 
   @@unique([userId, name]) //Reforça que um usuário não pode criar duas moedas com o mesmo nome
+  @@index([userId])
 }
 
 enum TransactionType{
@@ -83,6 +86,8 @@ model Transactions {
   category ExpenseAndRevenueCategories @relation(fields: [categoryId], references: [id]) //Relacionamento com a tabela ExpenseAndRevenueCategories[]
   account  Accounts                    @relation(fields: [accountId], references: [id]) //Relacionamento com a tabela Accounts[]
   currency UsersCurrencies             @relation(fields: [currencyId], references: [id])
+
+  @@index([payDay, userId])
 }
 
 model Accounts {
@@ -95,6 +100,8 @@ model Accounts {
 
   user         Users          @relation(fields: [userId], references: [id])
   Transactions Transactions[]
+
+  @@index([userId])
 }
 
 enum CategoryType {
@@ -113,5 +120,5 @@ model ExpenseAndRevenueCategories {
   user         Users          @relation(fields: [userId], references: [id])
   transactions Transactions[]
 
-  @@index([type]) //Indice na colune 'type', a fim de melhorar a performance de consultas que filtram pelo campo 'type'
+  @@index([type, userId]) //Indice na colune 'type', a fim de melhorar a performance de consultas que filtram pelo campo 'type'
 }
