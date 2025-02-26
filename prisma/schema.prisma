@@ -57,6 +57,8 @@ enum TransactionType{
   revenue
   expense
 }
+
+
 model Transactions {
   id          Int      @id @default(autoincrement())
   amount      Float
