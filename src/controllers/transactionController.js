@@ -30,6 +30,21 @@ const createTransaction = async (req, res) =>{
             return res.status(400).json({message: 'Campos obrigatorios estao ausentes!'})
         }
 
+        //Testa o tamanho da descrição
+        if(typeof description == "string" && (description.length > 200)){
+            return res.status(400).json({message: "Descrição com mais de 200 caracteres"})
+        }
+
+         //Testa o tamanho do attachment
+        if(typeof attachment == "string" && (attachment.length > 200)){
+            return res.status(400).json({message: "Attachment com mais de 200 caracteres"})
+        }
+
+        //Testa se o valor inserido está dentro dos limites
+        if(amount > 100000000000 || amount < 0.01){
+            return res.status(404).json({message: "Valor inserido acima do maximo permitido de 100 bilhões ou abaixo do minimo permitido de 1 centavo"})
+        }
+
         //Verifica a validade do tipo de transacao enviado
         if (!['revenue', 'expense'].includes(type)){
             return res.status(400).json({message: "Apenas são permitidos os tipos 'revenue' ou 'expense'"})
