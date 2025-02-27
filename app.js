@@ -1,7 +1,9 @@
 const express = require('express');
 const cookieParser  = require('cookie-parser');
 const cors = require('cors');
+
 const dotenv = require('dotenv');
+dotenv.config(); // Carrega as variáveis do .env
 
 const signUpRoutes = require('./src/routes/signUpRoutes');
 const loginRoutes = require('./src/routes/loginRoutes');
@@ -15,7 +17,7 @@ const currencyRoutes = require('./src/routes/currencyRoutes.js')
 
 const authMiddleware = require('./src/middlewares/authMiddleware');
 
-dotenv.config(); // Carrega as variáveis do .env
+
 
 const app = express();
 
@@ -41,4 +43,3 @@ const PORT = process.env.PORT || 5000; // Iniciar o servidor
 app.listen(PORT, () => {
     console.log('Servidor rodando na porta: ' + PORT);
 });
-
