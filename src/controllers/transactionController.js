@@ -179,13 +179,18 @@ const readUnpaidTransactions = async(req, res) =>{
     }
 }
 
-const getAllTranscations = async (req, res) =>{
+const getAllTransactions = async (req, res) =>{
     try{
-        return res.status(201).json({message: "Rota funcionando!"})
+        const allTransactions = await prisma.transactions.findMany({
+            where:{
+                userId: req.user.id
+            }
+        })
+        return allTransactions ? res.status(200).json(allTransactions) : []
     }catch(error){
         console.error("Erro ao tentar buscar todas as transacoes do usuario")
         return res.status(404).json({message: "Erro"})
     }
 }
 
-module.exports = { createTransaction, readMonthTransactions, readUnpaidTransactions, getAllTranscations };
+module.exports = { createTransaction, readMonthTransactions, readUnpaidTransactions, getAllTransactions };
