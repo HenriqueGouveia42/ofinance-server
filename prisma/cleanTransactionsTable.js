@@ -22,4 +22,5 @@ async function cleanTransactionsTable() {
     }
 }
 
-module.exports = {cleanTransactionsTable}
+cleanTransactionsTable();
+

@@ -11,4 +11,4 @@ async function cleanCurrenciesTable(){
     }
 }
 
-module.exports = {cleanCurrenciesTable}
+cleanCurrenciesTable();

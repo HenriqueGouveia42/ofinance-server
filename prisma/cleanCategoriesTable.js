@@ -11,4 +11,4 @@ async function cleanCategoriesTable(){
     }
 }
 
-module.exports = {cleanCategoriesTable}
+cleanCategoriesTable();
