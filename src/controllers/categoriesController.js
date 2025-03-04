@@ -1,4 +1,4 @@
-const { createCategory, checkIfCategoryAlreadyExists } = require("../services/categoryService");
+const { createCategory, checkIfCategoryAlreadyExists, updateCategoryName } = require("../services/categoryService");
 
 const newCategory = async(req, res) =>{
     try{
@@ -34,4 +34,18 @@ const newCategory = async(req, res) =>{
     }
 }
 
-module.exports = { newCategory};
+const renameCategory = async(req, res) =>{
+    try{
+        const {categoryId, newCategoryName} = req.body;
+
+        const newName = await updateCategoryName(req.user.id, categoryId, newCategoryName);
+
+        return newName ? res.status(200).json({message: "Nome da categoria alterado com sucesso"}) : res.status(404).json({message: "Erro ao alterar o nome da categoria"})
+    }catch(error){
+
+        console.error("Erro ao mudar o nome da categoria")
+        return res.status(404).json({message: "Erro ao mudar o nome da cateroria: ", error});
+    }
+}
+
+module.exports = { newCategory, renameCategory};
