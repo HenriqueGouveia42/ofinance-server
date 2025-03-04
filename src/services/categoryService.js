@@ -1,4 +1,5 @@
 const {prisma} = require('../config/prismaClient');
+const { newCategory } = require('../controllers/categoriesController');
 
 const createCategory = async(name, type, userId) =>{
     try{
@@ -40,7 +41,30 @@ const checkIfCategoryAlreadyExists = async(name, userId, type) =>{
     }
 }
 
+const updateCategoryName = async(userId, categoryId, newCategoryName) => {
+    try{
+        
+        if(typeof userId ==! "number" || typeof categoryId ==! "number" || typeof newCategoryName ==! "string"){
+            return false;
+        }
+        const newAccName = await prisma.expenseAndRevenueCategories.update({
+            where:{
+                userId: userId,
+                id: categoryId
+            },
+            data:{
+                name: newCategoryName
+            }
+        })
+        return true;
+    }catch(error){
+        console.error("Erro ao atualizar o nome da !!!!!!!!!!!!!!!");
+        return false;
+    }
+}
+
 module.exports ={
     createCategory,
-    checkIfCategoryAlreadyExists
+    checkIfCategoryAlreadyExists,
+    updateCategoryName
 }
