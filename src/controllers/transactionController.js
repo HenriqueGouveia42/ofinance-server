@@ -170,7 +170,14 @@ const readMonthTransactions = async(req, res) =>{
 
 const readUnpaidTransactions = async(req, res) =>{
     try{
-        const userId = req.user.id;
+        const unpaidTransactions = await prisma.transactions.findMany({
+            where:{
+                userId: req.user.id,
+                paid_out: false
+            }
+        })
+
+        return unpaidTransactions ? unpaidTransactions : [];
 
     }catch(error){
         console.error(error);
