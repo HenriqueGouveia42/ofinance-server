@@ -1,6 +1,6 @@
 const {prisma} = require('../config/prismaClient');
 const {checkAccountId, updateAccountBalance} = require('../services/userService');
-const {checkIfTransactionTypeMatchesToCategoryType} = require('../services/transactionService')
+const {checkIfTransactionTypeMatchesToCategoryType, newTransaction} = require('../services/transactionService')
 
 const convertToISO = (dateString) =>{
     const date = new Date(dateString);
@@ -74,7 +74,7 @@ const createTransaction = async (req, res) =>{
         const createdAt = now;
         const updatedAt =  now;
 
-        const transaction = await prisma.transactions.create({ 
+        /*const transaction = await prisma.transactions.create({ 
             data: {
                 amount: amount,
                 type: type,
@@ -94,9 +94,28 @@ const createTransaction = async (req, res) =>{
                 accountId: accountId,
                 currencyId: currencyId,
             }
-        });
+        });*/
+
+        const transaction = await newTransaction(
+            amount,
+            type,
+            paid_out,
+            isoPayDay,
+            description,
+            attachment,
+            fixed,
+            repeat,
+            typeRepeat,
+            remindMe,
+            createdAt,
+            updatedAt,
+            req.user.id,
+            categoryId,
+            accountId,
+            currencyId 
+        )
         
-        res.status(201).json({message:"Transacao criada com sucesso!"});
+        return transaction ? res.status(201).json({message:"Transacao criada com sucesso!"}) : res.status(404).json({message: "Erro ao criar transacao"});
     }catch(error){
         console.error("Erro ao criar transacao.", error);
         res.status(500).json({message: "Erro interno ao servidor"});
