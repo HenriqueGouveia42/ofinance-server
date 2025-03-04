@@ -177,7 +177,7 @@ const readUnpaidTransactions = async(req, res) =>{
             }
         })
 
-        return unpaidTransactions ? unpaidTransactions : [];
+        return unpaidTransactions ? res.status(200).json(unpaidTransactions) : res.status(200).json([]);
 
     }catch(error){
         console.error(error);
