@@ -111,9 +111,34 @@ const deleteAccount = async(req, res) =>{
         console.error("Erro ao tentar deletar conta", error);
         return res.status(404).json({message: "Erro ao tentar deletar conta"})
     }
+
+}
+
+const renameAccount = async(req, res) =>{
+    try{
+        const {accountId, accountNewName} = req.body;
+
+        if(typeof accountId ==! "number" || typeof accountNewName ==! "string"){
+            return res.status(404).json({message: "Tipos de entrada incorretos"})
+        }
+
+        const renameAccount = await prisma.accounts.update({
+            where:{
+                id: accountId,
+                userId: req.user.id
+            },
+            data:{
+                name: accountNewName
+            }
+        })
+        return res.status(200).json({message: "Nome atualizado com sucesso"});
+    }catch(error){
+        console.error("Erro ao renomear conta");
+        return res.status(404).json({message: "Erro ao renomear conta: ", error});
+    }
 }
 
 
 
 
-module.exports = {createAccount, updateBalance, getAccounts, deleteAccount};
+module.exports = {createAccount, updateBalance, getAccounts, deleteAccount, renameAccount};
