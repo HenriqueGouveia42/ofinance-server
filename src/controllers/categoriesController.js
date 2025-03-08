@@ -106,7 +106,7 @@ const deleteCategory = async(req, res) =>{
             }
         })
 
-        //Os passos 3 e 4 precisam vir dentro de um bloco 'transaction', pois, caso uma chamada assícnrona falhe, todas as feitas anteriormente serão desfeitas, mantendo assim a atomicidade do banco de dados
+        //Os passos 3 e 4 e 5 precisam vir dentro de um bloco 'transaction', pois, caso uma chamada assíncrona falhe, todas as outras feitas anteriormente serão desfeitas, mantendo assim a atomicidade do banco de dados
         await prisma.$transaction(async (prisma) =>{
             //3)
             for(const account of accountIdsAndTotalBalance){
