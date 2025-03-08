@@ -1,5 +1,7 @@
 const { createCategory, checkIfCategoryAlreadyExists, updateCategoryName } = require("../services/categoryService");
 
+const {prisma} = require('../config/prismaClient');
+
 const newCategory = async(req, res) =>{
     try{
         const {name, type} = req.body;
@@ -48,4 +50,92 @@ const renameCategory = async(req, res) =>{
     }
 }
 
-module.exports = { newCategory, renameCategory};
+
+const deleteCategory = async(req, res) =>{
+    try{
+        /*
+            Algoritmo para deletar uma categoria
+            1) Descorbrir todas as transações vinculadas a esta categoria
+            2) Calcular todos os balanços de resultado, a serem somados ou subtraidos, de todas as contas que tiveram transações vinculadas a esta categoria
+            3) Atualizar os novos valores dos balanços das contas
+            4) Deletar todas as transações vinculadas a esta categoria
+            5) Deletar categoria em si
+        */
+        const {categoryId} = req.body;
+        const userId = req.user.id;
+
+        const categoryType = await prisma.expenseAndRevenueCategories.findUnique({
+            select:{
+                type: true
+            },
+            where:{
+                userId: userId,
+                id: categoryId
+            }
+        })
+
+        //1)
+        const allTransactionsByCategoryId = await prisma.transactions.findMany({
+            select:{
+                accountId: true,
+                type: true,
+                amount: true,
+            },
+            where:{
+                userId: userId,
+                categoryId: categoryId
+            }
+        })
+
+        //2)
+        let accountIdsAndTotalBalance = [];
+
+        allTransactionsByCategoryId.forEach(transaction =>{
+
+            let existingAccount = accountIdsAndTotalBalance.find(obj => obj.accountId === transaction.accountId)
+
+            if(existingAccount){
+                transaction.type === 'revenue' ? 
+                existingAccount.totalBalance += transaction.amount :
+                existingAccount.totalBalance -= transaction.amount
+            }else{
+                accountIdsAndTotalBalance.push({
+                    accountId: transaction.accountId,
+                    totalBalance: transaction.type === 'revenue' ? transaction.amount : -transaction.amount
+                })
+            }
+        })
+
+        //Os passos 3 e 4 precisam vir dentro de um bloco 'transaction', pois, caso uma chamada assícnrona falhe, todas as feitas anteriormente serão desfeitas, mantendo assim a atomicidade do banco de dados
+        await prisma.$transaction(async (prisma) =>{
+            //3)
+            for(const account of accountIdsAndTotalBalance){
+                const updateAccount = await prisma.accounts.update({
+                    where:{
+                        userId: req.user.id,
+                        id: account.accountId
+                    },
+                    data:{
+                        balance:{
+                            increment: account.account
+                        },
+                    }
+                })
+            }
+            //4)
+            const deleteTransactionsByCategory = await prisma.transactions.deleteMany({
+                where:{
+                    userId: req.user.id,
+                    categoryId: categoryId
+                }
+            })
+        })
+
+
+    }catch(error){
+        console.error("Erro ao deletar categoria", error);
+        return res.status(404).json({message: "Erro ao deletar"})
+    }
+}
+
+module.exports = { newCategory, renameCategory, deleteCategory};
