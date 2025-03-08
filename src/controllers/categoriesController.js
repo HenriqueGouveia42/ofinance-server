@@ -59,7 +59,7 @@ const deleteCategory = async(req, res) =>{
             2) Calcular todos os balanços de resultado, a serem somados ou subtraidos, de todas as contas que tiveram transações vinculadas a esta categoria
             3) Atualizar os novos valores dos balanços das contas
             4) Deletar todas as transações vinculadas a esta categoria
-            5) Deletar categoria em si
+            5) Deletar a categoria em si
         */
         const {categoryId} = req.body;
         const userId = req.user.id;
@@ -127,6 +127,14 @@ const deleteCategory = async(req, res) =>{
                 where:{
                     userId: req.user.id,
                     categoryId: categoryId
+                }
+            })
+
+            //5)
+            const deleteCat = await prisma.expenseAndRevenueCategories.delete({
+                where:{
+                    userId: req.user.id,
+                    id: categoryId
                 }
             })
         })
