@@ -1,6 +1,6 @@
 //Servico responsavel por operações relacionadas ao usuario - criacao de usuario, salvamento de codigo de verificacao,
 
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const {sendConfirmationEmail} = require('../config/emailConfig');
 const {prisma} = require('../config/prismaClient');
 
@@ -9,8 +9,6 @@ const {prisma} = require('../config/prismaClient');
 //Criar usuario temporario na tabela stagedUsed
 const createStagedUser = async ({ name, email, password, createdAt, expiresAt, verificationCode }) => {
     try {
-        const test = {name, email, password, createdAt, expiresAt, verificationCode}
-        
         const user = await prisma.stagedUsers.create({
             data:{ 
                 name: name,
@@ -23,6 +21,7 @@ const createStagedUser = async ({ name, email, password, createdAt, expiresAt, v
         });
         return user;
     } catch (error) {
+        console.log(error);
         return { error: 'Erro ao registrar usuario temporario no banco de dados' };
     }
 };
