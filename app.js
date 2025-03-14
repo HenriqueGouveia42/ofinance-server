@@ -12,12 +12,9 @@ const transactionRoutes = require('./src/routes/transactionsRoutes');
 const accountsRoutes = require('./src/routes/accountsRoutes');
 const categoriesRoutes = require('./src/routes/categoriesRoutes');
 const userRoutes = require('./src/routes/userRoutes.js');
-const currencyRoutes = require('./src/routes/currencyRoutes.js')
-
+const currencyRoutes = require('./src/routes/currencyRoutes.js');
 
 const authMiddleware = require('./src/middlewares/authMiddleware');
-
-
 
 const app = express();
 
