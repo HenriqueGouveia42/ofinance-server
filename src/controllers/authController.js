@@ -1,6 +1,6 @@
 //Controlador responsável pelas operações de autenticação, como cadastro de usuário (sign-up) e verificacao de codigo
 
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');  // Adicione essa linha para importar o JWT
 
 
@@ -37,11 +37,12 @@ const signUpController = async (req, res) => {
             verificationCode: verificationCode
         });
 
+
         if (newStagedUser.error) {
             return res.status(400).json({ message: newStagedUser.error + "Erro ao criar um novo registro em stagedUsers" });
         }
 
-        await sendConfirmationEmail(newStagedUser.email, newStagedUser.verificationCode);
+        //await sendConfirmationEmail(newStagedUser.email, newStagedUser.verificationCode);
 
         res.status(201).json({ message: 'Usuário cadastrado com sucesso. Verifique o código de confirmação enviado por e-mail!' });
     } catch (error) {
