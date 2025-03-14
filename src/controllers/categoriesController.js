@@ -56,7 +56,7 @@ const deleteCategory = async(req, res) =>{
         /*
             Algoritmo para deletar uma categoria
             1) Descorbrir todas as transações vinculadas a esta categoria
-            2) Calcular todos os balanços de resultado, a serem somados ou subtraidos, de todas as contas que tiveram transações vinculadas a esta categoria
+            2) Somar todos os balanços, positivos se de receita, negativos se de despesa, de todas transações vinculadas a esta categoria
             3) Atualizar os novos valores dos balanços das contas
             4) Deletar todas as transações vinculadas a esta categoria
             5) Deletar a categoria em si
@@ -87,13 +87,29 @@ const deleteCategory = async(req, res) =>{
             }
         })
 
-        //2)
-        let accountIdsAndTotalBalance = [];
+        //allTranscationsByCategoryId = [
+        //  {accountId: 5, type: "revenue", amount: 1500},
+        //  {accountId: 6, type: "expense", amount: 750},
+        //  {accountId: 5, type: "revenue", amount: 600},
+        //  {accountId: 7, type: "expense", amount: 3500} ...
+        //]
 
+
+
+        //2)
+        //Array de objetos do tipo
+        //accountsIdsAndTotalBalance = [
+        // {accountId: 5, totalBalance: -750},
+        // {accountId: 6, totalBalance: -1500},
+        // {accountId: 7, totalBalance: 5600} ...
+        //]  
+        let accountIdsAndTotalBalance = [];
+        
         allTransactionsByCategoryId.forEach(transaction =>{
 
             let existingAccount = accountIdsAndTotalBalance.find(obj => obj.accountId === transaction.accountId)
 
+            //Já eaxiste uma conta com o id do elemento da iteração atual = transactions.id
             if(existingAccount){
                 transaction.type === 'revenue' ? 
                 existingAccount.totalBalance += transaction.amount :
@@ -138,7 +154,6 @@ const deleteCategory = async(req, res) =>{
                 }
             })
         })
-
 
     }catch(error){
         console.error("Erro ao deletar categoria", error);
