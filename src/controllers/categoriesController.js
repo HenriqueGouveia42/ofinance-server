@@ -74,6 +74,10 @@ const deleteCategory = async(req, res) =>{
             }
         })
 
+        if(!categoryType){
+            return res.status(404).json({message: "Usuario nao possui categoria com esse id"});
+        }
+
         //1)
         const allTransactionsByCategoryId = await prisma.transactions.findMany({
             select:{
@@ -86,6 +90,16 @@ const deleteCategory = async(req, res) =>{
                 categoryId: categoryId
             }
         })
+
+        if(allTransactionsByCategoryId.length == 0){
+            const delCat = await prisma.expenseAndRevenueCategories.delete({
+                where:{
+                    userId: userId,
+                    id: categoryId 
+                }
+            })
+            return res.status(200).json({message:"Não existem transações vinculada a esta categoria. Categoria deletada com sucesso!"})
+        }
 
         //allTranscationsByCategoryId = [
         //  {accountId: 5, type: "revenue", amount: 1500},
@@ -122,10 +136,6 @@ const deleteCategory = async(req, res) =>{
                 })
             }
         })
-
-        if(accountIdsAndTotalBalance.length == 0){
-            return res.status(404).json({message:"Categoria inexistente"})
-        }
 
         //return res.status(200).json({message: "So far so good!"});
 
