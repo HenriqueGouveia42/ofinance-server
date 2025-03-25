@@ -117,26 +117,34 @@ const deleteCategory = async(req, res) =>{
             }else{
                 accountIdsAndTotalBalance.push({
                     accountId: transaction.accountId,
-                    totalBalance: transaction.type === 'revenue' ? transaction.amount : -transaction.amount
+                    totalBalance: transaction.type === 'revenue' ? transaction.amount : -transaction.amount,
+                    type: transaction.type
                 })
             }
         })
+        
+        if(accountIdsAndTotalBalance.length == 0){
+            return res.status(404).json({message:"Categoria inexistente"})
+        }
+
+        //return res.status(200).json({message: "So far so good!"});
 
         //Os passos 3 e 4 e 5 precisam vir dentro de um bloco 'transaction', pois, caso uma chamada assíncrona falhe, todas as outras feitas anteriormente serão desfeitas, mantendo assim a atomicidade do banco de dados
         await prisma.$transaction(async (prisma) =>{
             //3)
             for(const account of accountIdsAndTotalBalance){
+
                 const updateAccount = await prisma.accounts.update({
                     where:{
                         userId: req.user.id,
                         id: account.accountId
                     },
                     data:{
-                        balance:{
-                            increment: account.account
-                        },
+                        balance: account.totalBalance <= 0
+                        ? {increment: Math.abs(account.totalBalance)}
+                        : {decrement: Math.abs(account.totalBalance)}
                     }
-                })
+                });
             }
             //4)
             const deleteTransactionsByCategory = await prisma.transactions.deleteMany({
@@ -145,7 +153,6 @@ const deleteCategory = async(req, res) =>{
                     categoryId: categoryId
                 }
             })
-
             //5)
             const deleteCat = await prisma.expenseAndRevenueCategories.delete({
                 where:{
@@ -154,6 +161,8 @@ const deleteCategory = async(req, res) =>{
                 }
             })
         })
+
+        return res.status(200).json({message: "Categoria deletada com sucesso!"});
 
     }catch(error){
         console.error("Erro ao deletar categoria", error);
