@@ -41,6 +41,20 @@ const checkIfCategoryAlreadyExists = async(name, userId, type) =>{
     }
 }
 
+const checkIfCategoryExists = async(userId, categoryId) => {
+    try{
+        const checkIfExists = await prisma.expenseAndRevenueCategories.findUnique({
+            where:{
+                userId: userId,
+                id: categoryId
+            }
+        })
+        return true;
+    }catch(error){
+        console.error("Erro ao verificar se essa categoria existe", error);
+    }
+}
+
 const updateCategoryName = async(userId, categoryId, newCategoryName) => {
     try{
         
@@ -66,5 +80,6 @@ const updateCategoryName = async(userId, categoryId, newCategoryName) => {
 module.exports ={
     createCategory,
     checkIfCategoryAlreadyExists,
-    updateCategoryName
+    updateCategoryName,
+    checkIfCategoryExists 
 }
