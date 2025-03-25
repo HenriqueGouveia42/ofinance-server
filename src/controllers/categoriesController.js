@@ -62,8 +62,9 @@ const deleteCategory = async(req, res) =>{
             5) Deletar a categoria em si
         */
         const {categoryId} = req.body;
-        const userId = req.user.id;
 
+        const userId = req.user.id;
+        
         const categoryType = await prisma.expenseAndRevenueCategories.findUnique({
             select:{
                 type: true
@@ -107,8 +108,6 @@ const deleteCategory = async(req, res) =>{
         //  {accountId: 5, type: "revenue", amount: 600},
         //  {accountId: 7, type: "expense", amount: 3500} ...
         //]
-
-
 
         //2)
         //Array de objetos do tipo
