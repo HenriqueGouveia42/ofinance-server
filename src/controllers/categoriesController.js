@@ -122,7 +122,7 @@ const deleteCategory = async(req, res) =>{
                 })
             }
         })
-        
+
         if(accountIdsAndTotalBalance.length == 0){
             return res.status(404).json({message:"Categoria inexistente"})
         }
@@ -166,7 +166,7 @@ const deleteCategory = async(req, res) =>{
 
     }catch(error){
         console.error("Erro ao deletar categoria", error);
-        return res.status(404).json({message: "Erro ao deletar"})
+        return res.status(404).json({message: "Erro ao deletar categoria"})
     }
 }
 
