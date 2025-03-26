@@ -1,6 +1,7 @@
 const {prisma} = require('../config/prismaClient');
 
-const {getDefaultCurrencyId, getAccountsByUserId, getCategoriesById, getCurrenciesByUserId} = require('../services/userService');
+const {getDefaultCurrencyId, getCategoriesById, getCurrenciesByUserId} = require('../services/userService');
+const {getAccountsByUserId} = require('../services/accountsServices');
 
 const getUserData = async(req, res) =>{
     try{
@@ -41,7 +42,7 @@ const getUserData = async(req, res) =>{
 
         return res.status(200).json(userData);
     }catch(error){
-        console.error("Erro ao buscar os dados cadastrados do usuario (Contas, moedas e categorias de receitas e despesas): ", error);
+        console.error("Erro ao buscar os dados cadastrados do usuario: ", error);
         return res.status(404).json({message: "Erro ao buscar os dados cadastrados do usuario"});
     }
 }
