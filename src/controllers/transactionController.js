@@ -1,6 +1,6 @@
 const {prisma} = require('../config/prismaClient');
 const {checkAccountId, updateAccountBalance} = require('../services/userService');
-const {checkIfTransactionTypeMatchesToCategoryType, newTransaction} = require('../services/transactionService')
+const {checkIfTransactionTypeMatchesToCategoryType, newTransaction} = require('../services/transactionsServices')
 
 const convertToISO = (dateString) =>{
     const date = new Date(dateString);
