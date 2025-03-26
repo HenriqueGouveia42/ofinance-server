@@ -1,5 +1,18 @@
 const {prisma} = require('../config/prismaClient');
-const { getAccountsByUserId, checkIfAccountAlreadyExists } = require('../services/userService');
+
+const 
+        {
+            getAccountsByUserId,
+            checkIfAccountAlreadyExists,
+            checkIfAccountExists,
+            deleteAccountById,
+            checkIfrecurringTransactionsExists
+        } = require('../services/accountsServices')
+
+const
+        {
+            getAllTransactionsByAccountId
+        } = require('../services/transactionsServices')
 
 const createAccount = async(req, res) =>{
     try{
@@ -75,43 +88,23 @@ const deleteAccount = async(req, res) =>{
             6) Deletar a conta em si
         */
         const {accountId} = req.body;
-
+        
         const {userId} = req.user.id;
 
         if(typeof accountId ==! "Number"){
             return res.status(400).json({message: "Id da conta a ser deletada invalido"})
         }
 
-        const accountExists = await prisma.accounts.findUnique({
-            where:{
-                id: accountId,
-                userId: req.user.id
-            }
-        })
+        const accountExists = await checkIfAccountExists(accountId, userId);
 
         if(!accountExists){
-            return res.status(404).json({message: "Erro ao apagar conta. Conta não existe para este usuario"});
+            return res.status(404).json({message: "Conta não existe para este usuario"});
         }
-
         //1)
-        const allTransactionsByAccountId = await prisma.transactions.findMany({
-            select:{
-                type: true,
-                amount: true,
-            },
-            where:{
-                userId: userId,
-                accountId: accountId
-            }
-        });
+        const allTransactionsByAccountId = await getAllTransactionsByAccountId(userId, accountId);
 
-        if (allTransactionsByAccountId.length == 0){
-            const delAcc = await prisma.accounts.delete({
-                where:{
-                    userId: userId,
-                    id: accountId
-                }
-            })
+        if (allTransactionsByAccountId.length == 0 || !allTransactionsByAccountId){
+            const delAcc = await deleteAccountById(userId, accountId);
             return res.status(200).json({message: "Não existem transacoes vinculadas a esta conta. Conta deletada com sucesso!"})
         }
 
@@ -123,20 +116,13 @@ const deleteAccount = async(req, res) =>{
 
         //2)
         allTransactionsByAccountId.forEach(transaction =>{
-    
             transaction.type === "revenue"
             ?   typeAndTotalBalance[0].totalBalance += transaction.amount
-            :   typeAndTotalBalance[1].totalBalance += transaction.amount;
-            
+            :   typeAndTotalBalance[1].totalBalance += transaction.amount;            
         })
 
         //3)
-        const recurringTransactionsExists = await prisma.transactions.findFirst({
-            where:{
-                accountId: accountId,
-                repeat: true
-            }
-        })
+        const recurringTransactionsExists = await checkIfrecurringTransactionsExists(accountId);
 
         if(recurringTransactionsExists){
             console.log("Esta conta tem transações recorrentes. Cancele ou transfira as transacoes recorrentes para outra conta");
@@ -158,7 +144,6 @@ const deleteAccount = async(req, res) =>{
                     :   {increment: Math.abs(balanceResult)}
                 }
             })
-
             //5
             const deleteTransactionsByAccountId = await prisma.transactions.deleteMany({
                 where:{
@@ -166,7 +151,6 @@ const deleteAccount = async(req, res) =>{
                     accountId: accountId
                 }
             });
-
             //6
             const deleteAccount = await prisma.accounts.delete({
                 where:{
