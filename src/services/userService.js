@@ -149,20 +149,6 @@ const getDefaultCurrencyById = async(defaultCurrencyId) =>{
     }
 }
 
-const getAccountsByUserId = async(userId) =>{
-    try{
-        const accounts = await prisma.accounts.findMany({
-            where:{
-                userId: userId,
-            },
-        });
-        return accounts; //Retorna um array vazio se nao houver contas cadastradas 
-    }catch(error){
-        console.error("Erro ao buscar contas do usuario", error);
-        return null; //Retorna null apenas em casos de erro
-    }
-}
-
 const getCurrenciesByUserId = async(userId) =>{
     try{
         const currencies = await prisma.usersCurrencies.findMany({
@@ -231,27 +217,6 @@ const getCategoriesById = async(userId) =>{
     }
 }
 
-const checkIfAccountAlreadyExists = async(accountName, userId) =>{
-    try{
-        const account = await prisma.accounts.findFirst({
-            where:{
-                name: accountName,
-                userId: userId
-            }
-        });
-        
-        if(account){
-            return true
-        }else{
-            return false
-        }
-    }catch(error){
-        console.error("Erro ao checar se a conta já existe", error);
-        return null;
-    }
-}
-
-
 module.exports = {
     createStagedUser,
     createUser,
@@ -260,10 +225,8 @@ module.exports = {
     loginByEmailAndPassword,
     getDefaultCurrencyId,
     getDefaultCurrencyById,
-    getAccountsByUserId,
     checkAccountId,
     updateAccountBalance,
     getCategoriesById,
-    getCurrenciesByUserId,
-    checkIfAccountAlreadyExists
+    getCurrenciesByUserId
 };
