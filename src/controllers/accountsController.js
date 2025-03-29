@@ -77,16 +77,17 @@ const updateBalance = async(req, res) =>{
 }
 
 const deleteAccount = async(req, res) =>{
+    /*
+        Algoritmo para deletar uma conta
+        1) Descobrir todas as transações vinculadas a esta conta
+        2) Somar todos os balanços, positivos se de receita, negativos se de despesa, de todas transações vinculadas a esta conta
+        3) Verifica se existem transações recorrentes vinculadas a esta conta. Se existir, a conta não pode ser deletada
+        4) Atualizar o novo valor de balanço da conta
+        5) Deletar todas as transações vinculadas a esta conta
+        6) Deletar a conta em si
+    */
     try{
-        /*
-            Algoritmo para deletar uma conta
-            1) Descobrir todas as transações vinculadas a esta conta
-            2) Somar todos os balanços, positivos se de receita, negativos se de despesa, de todas transações vinculadas a esta conta
-            3) Verifica se existem transações recorrentes vinculadas a esta conta. Se existir, a conta não pode ser deletada
-            4) Atualizar o novo valor de balanço da conta
-            5) Deletar todas as transações vinculadas a esta conta
-            6) Deletar a conta em si
-        */
+
         const {accountId} = req.body;
         
         const {userId} = req.user.id;
@@ -108,17 +109,15 @@ const deleteAccount = async(req, res) =>{
             return res.status(200).json({message: "Não existem transacoes vinculadas a esta conta. Conta deletada com sucesso!"})
         }
 
-        const typeAndTotalBalance = 
-        [
+        //2)
+        const typeAndTotalBalance = [
             {type: "revenue", totalBalance: 0},
             {type: "expense", totalBalance : 0}
         ]
-
-        //2)
         allTransactionsByAccountId.forEach(transaction =>{
             transaction.type === "revenue"
             ?   typeAndTotalBalance[0].totalBalance += transaction.amount
-            :   typeAndTotalBalance[1].totalBalance += transaction.amount;            
+            :   typeAndTotalBalance[1].totalBalance += transaction.amount            
         })
 
         //3)
