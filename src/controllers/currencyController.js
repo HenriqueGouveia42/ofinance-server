@@ -4,9 +4,12 @@ const {
         updateCurrency,
         checkIfCurrencyBelongsToUser,
         checkIfRecurringTransactionsExists,
-        deleteAllTransactionsForCurrency,
         dellCurrency
     } = require('../services/currencyServices')
+
+const {getAllTransactionsByCurrencyId} = require('../services/transactionsServices');
+
+const {prisma} = require('../config/prismaClient');
 
 const newCurrency = async(req, res) =>{
     try{
@@ -69,44 +72,109 @@ const updateDefaultCurrency = async (req, res) =>{
 }
 
 const deleteCurrency = async (req, res) =>{
+    /*
+        Algoritmo para deletar uma moeda
+        1) Descobrir todas as transações vinculadas a esta moeda
+        2) Somar todos os balanços, positivos se de receita, negativos se de despesa, de todas transações vinculadas a esta moeda
+        3) Verificar se existem transações recorrentes vinculadas a esta moeda. Se existir, a moeda não pode ser deletada
+        4) Atualizar os novos valores de balanço das contas que tinham transações vinculadas a esta moeda
+        5) Deletar todas as transações vinculadas a esta moeda
+        6) Deletar a moeda em si
+    */
+    try{
 
-    const {currencyId} = req.body;
+        const {currencyId} = req.body;
+        const {userId} = req.user.id;
 
-    //Passo 1: Verifica se o currnecyId é um numero
-    if(typeof currencyId !== "number"){
-        return res.status(404).json({message: "currencyId invalido. Deve ser do tipo 'Number'"})
-    }
+        if(typeof currencyId !== "number"){
+            return res.status(404).json({message: "currencyId invalido. Deve ser do tipo 'Number'"})
+        }
     
-     //Passo 2: Verifica se existe essa moeda especifica para esse usuario especifico
-    const belongsToUser = await checkIfCurrencyBelongsToUser(req.user.id, currencyId);
+        //Passo 2: Verifica se existe essa moeda especifica para esse usuario especifico
+        const belongsToUser = await checkIfCurrencyBelongsToUser(req.user.id, currencyId);
 
-    if(!belongsToUser){
-        return res.status(404).json({message: "Este usuario nao possui esta moeda cadastrada"})
-    }
+        if(!belongsToUser){
+            return res.status(404).json({message: "Este usuario nao possui esta moeda cadastrada"})
+        }
 
-    //Passo 3: Verifica se existem transacoes recorrentes associadas a esta moeda
-    const recurringTransactions = await checkIfRecurringTransactionsExists(currencyId);
-
-    if(recurringTransactions){
-        return res.status(404).json({message: "Existem transacoes recorrentes para essa moeda. Apague as transações recorrentes ou transfira as transações para outra moeda"})
-    }
-
-    //Passo 4: Para deletar uma moeda devemos, primeiro, deletar todas as transações associadas a essa moeda
-    const transactionsDell = await deleteAllTransactionsForCurrency(currencyId)
-
-    if(!transactionsDell){
-        return res.status(404).json({message: "Erro ao deletar as transacoes relacionadas a esta moeda"})
-    }
-
-    //Passo 5: Agora que as transações relacionadas a essa moeda foram removidas, podemos deletar a moeda propriamente dita, mantendo assim a integridade relacional do banco de dados
-    const dellCurr = await dellCurrency(currencyId);
-
-    if(!dellCurr){
-        return res.status(404).json({message: "Erro ao deletar moeda"});
-    }
-
-    return res.status(201).json({message: "Moeda deletada com sucesso"});
     
+        //1)
+        const allTransactionsByCurrencyId = await getAllTransactionsByCurrencyId(userId, currencyId);
+    
+        if(!allTransactionsByCurrencyId){
+            return res.status(404).json({message: "Erro ao buscar transacoes vinculadas a esta moeda"});
+        }
+
+        if(allTransactionsByCurrencyId.lenght === 0){
+            const dellCurr = await dellCurrency(userId, currencyId);
+            return res.status(200).json({message: "Não foram encontradas transações vinculadas a esta moeda. Moeda deletada com sucesso!"})
+        }
+
+        //2)
+        var accountIdsAndTotalBalance = [];
+
+        allTransactionsByCurrencyId.forEach(transaction =>{
+
+            let existingCurrency = accountIdsAndTotalBalance.find(obj => obj.accountId === transaction.accountId)
+
+            if(existingCurrency){
+                transaction.type === "revenue"
+                ?   existingCurrency.totalBalance += transaction.amount
+                :   existingCurrency.totalBalance -= transaction.amount
+            }else{
+                accountIdsAndTotalBalance.push({
+                    accountId: transaction.accountId,
+                    totalBalance: transaction.type === "revenue" ? transaction.amount : -transaction.amount
+                })
+            }
+
+        })
+
+        //3)
+        const recurringTransactions = await checkIfRecurringTransactionsExists(currencyId);
+
+        if(recurringTransactions){
+            return res.status(404).json({message: "Existem transacoes recorrentes para essa moeda. Apague as transações recorrentes ou transfira as transações para outra moeda"})
+        }
+
+        await prisma.$transaction(async (prisma) =>{
+            //4)
+            for(const acc of accountIdsAndTotalBalance){
+                const updateAccount = await prisma.accounts.update({
+                    where:{
+                        userId: userId,
+                        accountId: acc.accountId
+                    },
+                    data:{
+                        balance: acc.totalBalance <= 0
+                        ? {increment: Math.abs(acc.totalBalance)}
+                        : {decrement: Math.abs(acc.totalBalance)}
+
+                    }
+                })
+            }
+            //5
+            const deleteTransactionsByCurrencyId = await prisma.transactions.deleteMany({
+                where:{
+                    userId: userId,
+                    currencyId: currencyId
+                }
+            })
+            //6
+            const dellCurr = await dellCurrency(currencyId);
+        })
+
+        if(!dellCurr){
+            return res.status(404).json({message: "Erro ao deletar moeda"});
+        }
+
+        return res.status(201).json({message: "Moeda deletada com sucesso"});
+
+    }
+    catch(error){
+        console.error("Erro ao tentar deletar a moeda", error);
+        return res.status(404).json({message: "Erro ao tentar deletar a moeda"})
+    }
 }
 
 module.exports = {
