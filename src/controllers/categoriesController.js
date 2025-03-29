@@ -122,7 +122,7 @@ const deleteCategory = async(req, res) =>{
 
             let existingAccount = accountIdsAndTotalBalance.find(obj => obj.accountId === transaction.accountId)
 
-            //Já eaxiste uma conta com o id do elemento da iteração atual = transactions.id
+            //Já existe uma conta com o id do elemento da iteração atual = transactions.id
             if(existingAccount){
                 transaction.type === 'revenue' ? 
                 existingAccount.totalBalance += transaction.amount :
@@ -131,12 +131,9 @@ const deleteCategory = async(req, res) =>{
                 accountIdsAndTotalBalance.push({
                     accountId: transaction.accountId,
                     totalBalance: transaction.type === 'revenue' ? transaction.amount : -transaction.amount,
-                    type: transaction.type
                 })
             }
         })
-
-        //return res.status(200).json({message: "So far so good!"});
 
         //Os passos 3 e 4 e 5 precisam vir dentro de um bloco 'transaction', pois, caso uma chamada assíncrona falhe, todas as outras feitas anteriormente serão desfeitas, mantendo assim a atomicidade do banco de dados
         await prisma.$transaction(async (prisma) =>{
