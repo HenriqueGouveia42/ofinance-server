@@ -83,12 +83,33 @@ const getAllTransactionsByAccountId = async (userId, accountId) =>{
     }
 }
 
+const getAllTransactionsByCurrencyId = async (userId, currencyId) =>{
+    try{
+        const allTr = await prisma.transactions.findMany({
+            select:{
+                amount: true,
+                type: true,
+                accountId: true
+            },
+            where:{
+                userId: userId,
+                currencyId: currencyId
+            }
+        })
+        return allTr;
+    }catch(error){
+        console.error("Erro ao buscar transações vinculadas a esta moeda", error);
+        return null;
+    }
+}
+
 
 
 //const getAllTranscations = async ()
 module.exports ={
     checkIfTransactionTypeMatchesToCategoryType,
     newTransaction,
-    getAllTransactionsByAccountId
+    getAllTransactionsByAccountId,
+    getAllTransactionsByCurrencyId
 }
 
