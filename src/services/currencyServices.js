@@ -85,7 +85,7 @@ const updateCurrency = async(userId, newDefaultCurrencyId) =>{
             return true;
         }
     }catch(error){
-        console.log("Erro ao tentar atualizar o id da moeda padrao");
+        console.log("Erro ao tentar atualizar o id da moeda padrao", error);
         return null;
     }
 }
@@ -101,7 +101,7 @@ const checkIfRecurringTransactionsExists = async (currencyId) =>{
 
         return reccuringTransactionsExists ? true : false
     }catch(error){
-        console.error("Erro ao checar se existem transacoes recorrentes associadas a essa moeda")
+        console.error("Erro ao checar se existem transacoes recorrentes associadas a essa moeda", error)
         return null;
     }
 }
@@ -115,25 +115,25 @@ const deleteAllTransactionsForCurrency = async(currencyId) =>{
         });
         return dell ? true : false
     }catch(error){
-        console.error("Erro ao tentar deletar todas as transacoes relacionadas a uma determinada moeda");
+        console.error("Erro ao tentar deletar todas as transacoes relacionadas a uma determinada moeda", error);
         return null;
     }
 }
 
-const dellCurrency = async (currencyId) =>{
+const dellCurrency = async (userId, currencyId) =>{
     try{
         const dCurr = await prisma.usersCurrencies.delete({
             where:{
+                userId: userId,
                 id: currencyId
             }
         });
-        return dCurr ? true : false
+        return dCurr;
     }catch(error){
-        console.error("Erro ao tentar deletar moeda");
+        console.error("Erro ao tentar deletar moeda", error);
         return null;
     }
 }
-
 
 module.exports = {
     createCurrency,
