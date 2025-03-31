@@ -46,21 +46,25 @@ const newTransaction = async(
     }
 }
 
-const checkIfTransactionTypeMatchesToCategoryType = async (TransactionType, CategoryId) => {
+const checkIfTransactionTypeMatchesToCategoryType = async (userId, TransactionType, CategoryId) => {
     try{
+        
         const getCategory = await prisma.expenseAndRevenueCategories.findUnique({
             where:{
-                id: CategoryId
+                id: CategoryId,
+                userId: userId,
+                type: TransactionType
             }
-        })
-        if(getCategory.type === TransactionType){
-            return true;
-        }else{
-            return false;
+        });
+        
+        if (!getCategory){
+            throw new Error("Categoria não encontrada ou incompatível com o tipo da transação.");
         }
+        
+        return getCategory;
     }catch(error){
-        console.error("Erro ao verificar se o tipo de transacao escolhido confere com o tipo de categoria")
-        return null;
+        console.error("Erro ao verificar se o tipo de transacao escolhido confere com o tipo de categoria", error);
+        throw new Error("Erro ao validar categoria da transação ou tipo da transação não bate com o tipo da categoria");
     }
 }
 
