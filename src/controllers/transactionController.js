@@ -35,7 +35,7 @@ const createTransaction = async (req, res) =>{
             return res.status(400).json({message: "Descrição com mais de 200 caracteres"})
         }
 
-         //Testa o tamanho do attachment
+        //Testa o tamanho do attachment
         if(typeof attachment == "string" && (attachment.length > 200)){
             return res.status(400).json({message: "Attachment com mais de 200 caracteres"})
         }
@@ -50,11 +50,7 @@ const createTransaction = async (req, res) =>{
             return res.status(400).json({message: "Apenas são permitidos os tipos 'revenue' ou 'expense'"})
         }
 
-        const isTransactionsTypeCorrect = await checkIfTransactionTypeMatchesToCategoryType(type, categoryId);
-
-        if(!isTransactionsTypeCorrect){
-            return res.status(404).json({message: "Tipo da transacao não bate com a categoria escolhida"})
-        }
+        const isTransactionsTypeCorrect = await checkIfTransactionTypeMatchesToCategoryType(req.user.id, type, categoryId);
 
         const isoPayDay = convertToISO(payDay.startDate);
 
