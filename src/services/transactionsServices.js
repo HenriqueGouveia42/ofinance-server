@@ -39,10 +39,10 @@ const newTransaction = async(
                 currencyId
             }
         })
-        return true;
+        return transaction;
     }catch(error){
-        console.error("Erro no serviço de criar nova transacao");
-        return false;
+        console.error("Erro no serviço de criar nova transacao", error);
+        throw new Error('Erro no serviço de criar nova transacao');
     }
 }
 
