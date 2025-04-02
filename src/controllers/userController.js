@@ -18,19 +18,15 @@ const getUserData = async(req, res) =>{
             categories: null
         };
         
-        //check cache first
         const nameEmailAndDefaultCurrencyId = await getNameEmailAndCurrencyByUserId(userId);
         if(!nameEmailAndDefaultCurrencyId){
             return res.status(404).json({message: "Usuario nao encontrado"});
         }
 
-        //check cache first
         const accounts = await getAccountsByUserId(userId);
-       
-        //check cache first
+
         const categories = await getCategoriesByUserId(userId);
         
-        //check cache first
         const currencies = await getCurrenciesByUserId(userId);
         
         userData.name = nameEmailAndDefaultCurrencyId.name;
