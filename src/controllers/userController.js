@@ -1,7 +1,9 @@
 const {prisma} = require('../config/prismaClient');
 
-const {getDefaultCurrencyId, getCategoriesById, getCurrenciesByUserId} = require('../services/userService');
+const {getNameEmailAndCurrencyByUserId} = require('../services/userService');
 const {getAccountsByUserId} = require('../services/accountsServices');
+const {getCategoriesByUserId} = require('../services/categoryService');
+const {getCurrenciesByUserId} = require('../services/currencyServices')
 
 const getUserData = async(req, res) =>{
     try{
@@ -10,37 +12,36 @@ const getUserData = async(req, res) =>{
         const userData = {
             name: null,
             email: null,
-            currencies: null,
             defaultCurrencyId: null,
+            currencies: null,
             accounts: null,
             categories: null
         };
         
-        const nameAndEmail = await prisma.users.findUnique({
-            where:{id: userId},
-            select: {name:true, email: true}
-        });
-
-        if(!nameAndEmail){
+        //check cache first
+        const nameEmailAndDefaultCurrencyId = await getNameEmailAndCurrencyByUserId(userId);
+        if(!nameEmailAndDefaultCurrencyId){
             return res.status(404).json({message: "Usuario nao encontrado"});
         }
 
-        const defaultCurrencyId = await getDefaultCurrencyId(userId);
-
+        //check cache first
         const accounts = await getAccountsByUserId(userId);
-
-        const categories = await getCategoriesById(userId);
-
+       
+        //check cache first
+        const categories = await getCategoriesByUserId(userId);
+        
+        //check cache first
         const currencies = await getCurrenciesByUserId(userId);
-
-        userData.name = nameAndEmail.name;
-        userData.email = nameAndEmail.email;
+        
+        userData.name = nameEmailAndDefaultCurrencyId.name;
+        userData.email = nameEmailAndDefaultCurrencyId.email;
+        userData.defaultCurrencyId = nameEmailAndDefaultCurrencyId.defaultCurrencyId;
         userData.currencies = currencies;
-        userData.defaultCurrencyId = defaultCurrencyId;
         userData.accounts = accounts;
         userData.categories = categories;
 
         return res.status(200).json(userData);
+        
     }catch(error){
         console.error("Erro ao buscar os dados cadastrados do usuario: ", error);
         return res.status(404).json({message: "Erro ao buscar os dados cadastrados do usuario"});
