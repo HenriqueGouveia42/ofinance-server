@@ -1,5 +1,6 @@
 const {prisma} = require('../config/prismaClient');
 
+//check cache first
 const getAccountsByUserId = async(userId) =>{
     try{
         const accounts = await prisma.accounts.findMany({
@@ -14,6 +15,7 @@ const getAccountsByUserId = async(userId) =>{
     }
 }
 
+//check cache first
 const checkIfAccountAlreadyExists = async(accountName, userId) =>{
     try{
         const account = await prisma.accounts.findFirst({
@@ -34,6 +36,7 @@ const checkIfAccountAlreadyExists = async(accountName, userId) =>{
     }
 }
 
+//check cache first
 const checkIfAccountExists = async(accountId, userId) =>{
     try{
         const accExists = await prisma.accounts.findUnique({
@@ -64,6 +67,7 @@ const deleteAccountById = async(userId, accountId) =>{
     }
 }
 
+//check cache first
 const checkIfrecurringTransactionsExists = async(accountId) =>{
     try{
         const recTransExists = await prisma.transactions.findFirst({
