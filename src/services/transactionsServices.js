@@ -68,6 +68,7 @@ const checkIfTransactionTypeMatchesToCategoryType = async (userId, TransactionTy
     }
 }
 
+//check cache first
 const getAllTransactionsByAccountId = async (userId, accountId) =>{
     try{
         const allTransByAccId = await prisma.transactions.findMany({
@@ -87,6 +88,7 @@ const getAllTransactionsByAccountId = async (userId, accountId) =>{
     }
 }
 
+//check cache first
 const getAllTransactionsByCurrencyId = async (userId, currencyId) =>{
     try{
         const allTr = await prisma.transactions.findMany({
@@ -107,9 +109,6 @@ const getAllTransactionsByCurrencyId = async (userId, currencyId) =>{
     }
 }
 
-
-
-//const getAllTranscations = async ()
 module.exports ={
     checkIfTransactionTypeMatchesToCategoryType,
     newTransaction,

@@ -111,27 +111,8 @@ const loginByEmailAndPassword = async(email, password) =>{
     return user; //Login bem-sucedido, retorna os dados do usuario
 }
 
-//Retorna o "defaultCurrencyId" do modelo "Users" de um determinado "user_id"
-const getDefaultCurrencyId = async(userId) =>{
-
-try{
-    const user = await prisma.users.findUnique({
-        where: {id: userId},
-        select: {defaultCurrencyId: true}
-    })
-    if(!user){
-        throw new Error('Usuario nao encontrado');
-    }
-    return user.defaultCurrencyId;
-}catch(error){
-    console.error(error);
-    console.log("Erro ao recuperar o defaultCurrencyId do usuario")
-    throw error;
-}
-}
-
-//Retorna o "name" do modelo "UsersCurrencies" de um determinado "defaultCurrencyId"
-const getDefaultCurrencyById = async(defaultCurrencyId) =>{
+//check cache first
+const getDefaultCurrencyByCurrencyId = async(defaultCurrencyId) =>{
     try{
         const currency = await prisma.usersCurrencies.findUnique({
             where: {id: defaultCurrencyId},
@@ -149,71 +130,23 @@ const getDefaultCurrencyById = async(defaultCurrencyId) =>{
     }
 }
 
-const getCurrenciesByUserId = async(userId) =>{
+//check cache first
+const getNameEmailAndCurrencyByUserId = async(userId) =>{
     try{
-        const currencies = await prisma.usersCurrencies.findMany({
-            where:{
-                userId: userId
-            },
-        });
-        return currencies;
-    }catch(error){
-        console.error("Erro ao retornar moedas cadadastradas do usuario: ", error);
-        return null;
-    }
-}
-
-const checkAccountId = async(accountId, user_id) =>{
-    try{
-        const account = await prisma.accounts.findUnique({
-            where:{
-                id: accountId,
-            }
-        });
-        return account ? account.userId === user_id : false;
-    }catch(error){
-        console.error("Erro ao verificar se o id da conta é cadastrada e está em nome do referido usuario", error);
-        return false;
-    }
-    
-}
-
-const updateAccountBalance = async(accountId, type, amount) => {
-    try{
-        const updateData =
-            type === "expense"
-            ? {balance: {decrement: amount}}
-            : {balance: {increment: amount}};
-
-        const newBalance = await prisma.accounts.update({
-            where:{id: accountId},
-            data:updateData,
-        });
-
-        return newBalance ? true : false;
-    }catch(error){
-        console.error("Erro ao atualizar o balanço da conta", error);
-        return false;
-    }
-}
-
-const getCategoriesById = async(userId) =>{
-    try{
-        const categories = await prisma.expenseAndRevenueCategories.findMany({
+        const _getNameEmailAndCurrencyId = await prisma.users.findUnique({
             select:{
-                id: true,
                 name: true,
-                type: true
+                email: true,
+                defaultCurrencyId: true
             },
             where:{
-                userId: userId
+                id: userId
             }
-        });
-
-        return categories.length == 0 ? [] : categories;
+        })
+        return _getNameEmailAndCurrencyId
     }catch(error){
-        console.error("Erro ao buscar categorias de receitas e despesas do usuario: ", error);
-        return false;
+        console.error("Erro ao buscar nome e email do usuario", error);
+        throw new Error('Erro ao buscar nome e email do usuario');
     }
 }
 
@@ -223,10 +156,6 @@ module.exports = {
     findUserByEmail,
     verifyCode,
     loginByEmailAndPassword,
-    getDefaultCurrencyId,
-    getDefaultCurrencyById,
-    checkAccountId,
-    updateAccountBalance,
-    getCategoriesById,
-    getCurrenciesByUserId
+    getDefaultCurrencyByCurrencyId,
+    getNameEmailAndCurrencyByUserId
 };
