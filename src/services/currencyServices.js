@@ -135,6 +135,7 @@ const dellCurrency = async (userId, currencyId) =>{
     }
 }
 
+//check cache first
 const getCurrenciesByUserId = async(userId) =>{
     try{
         const currencies = await prisma.usersCurrencies.findMany({
