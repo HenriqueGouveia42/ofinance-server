@@ -1,6 +1,8 @@
 const {prisma} = require('../config/prismaClient');
-const {checkAccountId, updateAccountBalance} = require('../services/userService');
+
 const {checkIfTransactionTypeMatchesToCategoryType, newTransaction} = require('../services/transactionsServices')
+
+const {updateAccountBalance} = require('../services/accountsServices');
 
 const convertToISO = (dateString) =>{
     const date = new Date(dateString);
@@ -9,6 +11,16 @@ const convertToISO = (dateString) =>{
 
 const createTransaction = async (req, res) =>{
     try{
+        /*
+            1) Verificar a presença de campos obrigatorios
+            2) Verificar o tamanho máximo da descrição
+            3) Testa o tamanho do attachment
+            4) Testa se o valor inserido está dentro dos limites
+            5) Verifica se o tipo ide transação é 'revenue' ou 'expense'
+            6) Verifica se o tipo de transação ('revenue' ou 'expense') é compatível com o tipo de categoria escolhido ('revenue' ou 'expense')
+            7) Atualização do balanço da conta
+            8) Criar a nova transação
+        */
         const {
             amount,
             type,
@@ -24,94 +36,78 @@ const createTransaction = async (req, res) =>{
             accountId,
             currencyId
         } = req.body;
+
+        const userId = req.user.id;
         
-        //Verifica a presença de campos obrigatorios
+        //1)
         if(!amount || !type || !payDay){
             return res.status(400).json({message: 'Campos obrigatorios estao ausentes!'})
         }
 
-        //Testa o tamanho da descrição
+        //2)
         if(typeof description == "string" && (description.length > 200)){
             return res.status(400).json({message: "Descrição com mais de 200 caracteres"})
         }
 
-        //Testa o tamanho do attachment
+        //3) 
         if(typeof attachment == "string" && (attachment.length > 200)){
             return res.status(400).json({message: "Attachment com mais de 200 caracteres"})
         }
 
-        //Testa se o valor inserido está dentro dos limites
-        if(amount > 100000000000 || amount < 0.01){
+        //4)
+        console.log(typeof amount)
+        if(amount > 100000000000 || amount < 0.01 || typeof amount != 'number'){
             return res.status(404).json({message: "Valor inserido acima do maximo permitido de 100 bilhões ou abaixo do minimo permitido de 1 centavo"})
         }
 
-        //Verifica a validade do tipo de transacao enviado
+        //5) 
         if (!['revenue', 'expense'].includes(type)){
             return res.status(400).json({message: "Apenas são permitidos os tipos 'revenue' ou 'expense'"})
         }
 
-        const isTransactionsTypeCorrect = await checkIfTransactionTypeMatchesToCategoryType(req.user.id, type, categoryId);
+        //6)
+        const isTransactionsTypeCorrect = await checkIfTransactionTypeMatchesToCategoryType(userId, type, categoryId);
 
         const isoPayDay = convertToISO(payDay.startDate);
 
-        //Validação do accountId passado como argumento        
-        const acc = await checkAccountId(accountId, req.user.id);
-        if(!acc){
-            return res.status(400).json({message: "Conta não existente, não cadastrada em nome do usuario ou do tipo incorreto"});
-        }
+        await prisma.$transaction(async () =>{
 
-        //Atualização do balanço da conta
-        const newBalance = await updateAccountBalance(accountId, type, amount);
-        if(!newBalance){
-            return res.status(404).json({message: "Erro ao atualizar o balaço da conta"});
-        }
-
-        const now = new Date();
-        const createdAt = now;
-        const updatedAt =  now;
-
-        /*const transaction = await prisma.transactions.create({ 
-            data: {
-                amount: amount,
-                type: type,
-                paid_out: paid_out,
-                payDay: isoPayDay,
-                description: description,
-                attachment: attachment,
-                fixed: fixed,
-                repeat: repeat,
-                typeRepeat: typeRepeat,
-                remindMe: remindMe,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-
-                userId: req.user.id, 
-                categoryId: categoryId,
-                accountId: accountId,
-                currencyId: currencyId,
+            //7)
+            const newBalance = await updateAccountBalance(accountId, type, amount);
+            if(!newBalance){
+                return res.status(404).json({message: "Erro ao atualizar o balaço da conta"});
             }
-        });*/
 
-        const transaction = await newTransaction(
-            amount,
-            type,
-            paid_out,
-            isoPayDay,
-            description,
-            attachment,
-            fixed,
-            repeat,
-            typeRepeat,
-            remindMe,
-            createdAt,
-            updatedAt,
-            req.user.id,
-            categoryId,
-            accountId,
-            currencyId 
-        )
-        
-        return transaction ? res.status(201).json({message:"Transacao criada com sucesso!"}) : res.status(404).json({message: "Erro ao criar transacao"});
+            const now = new Date();
+            const createdAt = now;
+            const updatedAt =  now;
+
+            //8)
+            const transaction = await newTransaction(
+                amount,
+                type,
+                paid_out,
+                isoPayDay,
+                description,
+                attachment,
+                fixed,
+                repeat,
+                typeRepeat,
+                remindMe,
+                createdAt,
+                updatedAt,
+                userId,
+                categoryId,
+                accountId,
+                currencyId 
+            )
+
+            if (!transaction){
+                return res.status(404).json({message: "Erro ao criar transacao"})
+            }
+            
+            return res.status(201).json({message: "Transacao criada com sucesso"})
+        })
     }catch(error){
         console.error("Erro ao criar transacao.", error);
         res.status(500).json({message: "Erro interno ao servidor"});
@@ -185,18 +181,18 @@ const readMonthTransactions = async(req, res) =>{
 
 const readUnpaidTransactions = async(req, res) =>{
     try{
+        const userId = req.user.id;
         const unpaidTransactions = await prisma.transactions.findMany({
             where:{
-                userId: req.user.id,
+                userId: userId,
                 paid_out: false
             }
         })
-
-        return unpaidTransactions ? res.status(200).json(unpaidTransactions) : res.status(200).json([]);
+        
+        return res.status(200).json(unpaidTransactions)
 
     }catch(error){
-        console.error(error);
-        console.log("Erro ao tentar ler as transacoes nao pagas");
+        console.error("Erro ao tentar ler as transacoes nao pagas", error);
         return res.status(404).json({message: "Erro ao tentar ler as transacoes nao pagas"})
     }
 }
