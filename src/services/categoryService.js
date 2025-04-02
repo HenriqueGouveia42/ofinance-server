@@ -41,6 +41,7 @@ const checkIfCategoryAlreadyExists = async(name, userId, type) =>{
     }
 }
 
+//check cache first
 const checkIfCategoryExists = async(userId, categoryId) => {
     try{
         const checkIfExists = await prisma.expenseAndRevenueCategories.findUnique({
@@ -77,6 +78,7 @@ const updateCategoryName = async(userId, categoryId, newCategoryName) => {
     }
 }
 
+//check cache first
 const getCategoriesByUserId = async(userId) =>{
     try{
         const categories = await prisma.expenseAndRevenueCategories.findMany({
