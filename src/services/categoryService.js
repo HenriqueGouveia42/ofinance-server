@@ -77,9 +77,29 @@ const updateCategoryName = async(userId, categoryId, newCategoryName) => {
     }
 }
 
+const getCategoriesByUserId = async(userId) =>{
+    try{
+        const categories = await prisma.expenseAndRevenueCategories.findMany({
+            select:{
+                id: true,
+                name: true,
+                type: true
+            },
+            where:{
+                userId: userId
+            }
+        });
+        return categories;
+    }catch(error){
+        console.error("Erro ao buscar categorias de receitas e despesas do usuario: ", error);
+        throw new Error('Erro ao buscar categorias de receitas e despesas do usuario');
+    }
+}
+
 module.exports ={
     createCategory,
     checkIfCategoryAlreadyExists,
     updateCategoryName,
-    checkIfCategoryExists 
+    checkIfCategoryExists,
+    getCategoriesByUserId 
 }
