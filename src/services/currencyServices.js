@@ -135,6 +135,20 @@ const dellCurrency = async (userId, currencyId) =>{
     }
 }
 
+const getCurrenciesByUserId = async(userId) =>{
+    try{
+        const currencies = await prisma.usersCurrencies.findMany({
+            where:{
+                userId: userId
+            },
+        });
+        return currencies;
+    }catch(error){
+        console.error("Erro ao retornar moedas cadadastradas do usuario", error);
+        throw new Error('Erro ao retornar moedas cadadastradas do usuario');
+    }
+}
+
 module.exports = {
     createCurrency,
     checkIfCurrencyAlreadyExists,
@@ -142,5 +156,6 @@ module.exports = {
     updateCurrency,
     checkIfRecurringTransactionsExists,
     deleteAllTransactionsForCurrency,
-    dellCurrency
+    dellCurrency,
+    getCurrenciesByUserId
 }
