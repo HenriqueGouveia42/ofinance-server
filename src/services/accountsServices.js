@@ -7,10 +7,10 @@ const getAccountsByUserId = async(userId) =>{
                 userId: userId,
             },
         });
-        return accounts; //Retorna um array vazio se nao houver contas cadastradas 
+        return accounts;
     }catch(error){
         console.error("Erro ao buscar contas do usuario", error);
-        return null; //Retorna null apenas em casos de erro
+        throw new Error('Erro ao buscar contas do usuario"');
     }
 }
 
@@ -79,11 +79,31 @@ const checkIfrecurringTransactionsExists = async(accountId) =>{
     }
 }
 
+const updateAccountBalance = async(accountId, type, amount) => {
+    try{
+        const updateData =
+            type === "expense"
+            ? {balance: {decrement: amount}}
+            : {balance: {increment: amount}};
+
+        const newBalance = await prisma.accounts.update({
+            where:{id: accountId},
+            data: updateData,
+        });
+
+        return newBalance
+    }catch(error){
+        console.error("Erro ao atualizar o balanço da conta", error);
+        throw new Error("Erro ao atualizar o balanço da conta")
+    }
+}
+
 
 module.exports = {
     getAccountsByUserId,
     checkIfAccountAlreadyExists,
     checkIfAccountExists,
     deleteAccountById,
-    checkIfrecurringTransactionsExists
+    checkIfrecurringTransactionsExists,
+    updateAccountBalance
 }
