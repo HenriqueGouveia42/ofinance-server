@@ -15,7 +15,7 @@ const authMiddleware = (req, res, next) =>{
     const validToken = jwt.verify(token, process.env.JWT_SECRET);
     
     if(!validToken){
-        return res.status(401).json({message: "Token invalido ou expirado"});
+        return res.status(403).json({message: "Token invalido ou expirado"});
     }
 
     req.user = validToken; //Anexa os dados do usuario ao objeto de requisição
