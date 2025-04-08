@@ -1,5 +1,7 @@
 const {prisma} = require('../config/prismaClient');
 
+const {redisClient} = require('../config/redis');
+
 const newTransaction = async(
     amount,
     type,
@@ -68,11 +70,12 @@ const checkIfTransactionTypeMatchesToCategoryType = async (userId, TransactionTy
     }
 }
 
-//check cache first
 const getAllTransactionsByAccountId = async (userId, accountId) =>{
     try{
+
         const allTransByAccId = await prisma.transactions.findMany({
             select:{
+
                 type: true,
                 amount: true
             },
@@ -81,6 +84,8 @@ const getAllTransactionsByAccountId = async (userId, accountId) =>{
                 accountId: accountId
             }
         })
+
+        
         return allTransByAccId
     }catch(error){
         console.error("Erro ao buscar todas as transações vinculadas a esta conta", error);
@@ -88,9 +93,10 @@ const getAllTransactionsByAccountId = async (userId, accountId) =>{
     }
 }
 
-//check cache first
+
 const getAllTransactionsByCurrencyId = async (userId, currencyId) =>{
     try{
+        
         const allTr = await prisma.transactions.findMany({
             select:{
                 amount: true,
