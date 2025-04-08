@@ -1,12 +1,50 @@
-//Servico responsavel por operações relacionadas ao usuario - criacao de usuario, salvamento de codigo de verificacao,
-
 const bcrypt = require('bcryptjs');
 const {sendConfirmationEmail} = require('../config/emailConfig');
 const {prisma} = require('../config/prismaClient');
+const {redisClient} = require('../config/redis')
 
-//A senha já chega aqui hasheada
 
-//Criar usuario temporario na tabela stagedUsed
+const getNameEmailAndCurrencyByUserId = async(userId) =>{
+    try{
+    
+        const _getNameEmailAndCurrencyId = await prisma.users.findUnique({
+            select:{
+                name: true,
+                email: true,
+                defaultCurrencyId: true
+            },
+            where:{
+                id: userId
+            }
+        })
+
+        return _getNameEmailAndCurrencyId
+    }catch(error){
+        console.error("Erro ao buscar nome e email do usuario", error);
+        throw new Error('Erro ao buscar nome e email do usuario');
+    }
+}
+
+//CACHE - OK
+const getDefaultCurrencyByCurrencyId = async(defaultCurrencyId) =>{
+    try{
+        
+        const defaultCurrency = await prisma.usersCurrencies.findUnique({
+            where: {id: defaultCurrencyId},
+        });
+
+        if(!defaultCurrency){
+            throw new Error('Moeda nao encontrada');
+        }
+
+        
+        return defaultCurrency;
+    }catch(error){
+        console.error('Erro ao recuperar o nome da moeda pelo seu id', error);
+        throw new Error('Erro ao recuperar o nome da moeda pelo seu id');
+    }
+}
+
 const createStagedUser = async ({ name, email, password, createdAt, expiresAt, verificationCode }) => {
     try {
         const user = await prisma.stagedUsers.create({
@@ -26,9 +64,7 @@ const createStagedUser = async ({ name, email, password, createdAt, expiresAt, v
     }
 };
 
-//Criar usuario autenticado na tabela User
 const createUser = async ({ email, name, password, createdAt }) => {
-    
     try {
         const result = await prisma.$transaction(async (prisma)=>{
             //Criar user
@@ -71,23 +107,38 @@ const createUser = async ({ email, name, password, createdAt }) => {
     
 };
 
-//Buscar usuario pelo e-mail
 const findUserByEmail = async(email) =>{
-    return await prisma.stagedUsers.findUnique({where:{email}});
+    try{
+       
+
+        const stagedUser =  await prisma.stagedUsers.findUnique({
+            where:{
+                email: email
+            }
+        });
+
+        return stagedUser;        
+    }catch(error){
+        console.error('Erro ao buscar usuario pelo email: ', error);
+        throw new Error('Erro ao buscar usuario pelo email');
+    }
 }
 
-
-//Verificar se o codigo é valido
 const verifyCode = async(userId, code) =>{
-    const user = await prisma.stagedUsers.findUnique({where:{id: userId}});
+    try{
+        const user = await prisma.stagedUsers.findUnique({where:{id: userId}});
 
-    if(!user || user.verificationCode !== code) return false;
+        if(!user || user.verificationCode !== code) return false;
 
-    const now = new Date();
+        const now = new Date();
 
-    if(user.expiresAt < now) return false;
+        if(user.expiresAt < now) return false;
 
-    return true;
+        return true;
+    }catch(error){
+        console.error('Erro ao verificar codigo');
+        throw new Error('Erro ao verificar codigo');
+    }
 }
 
 const loginByEmailAndPassword = async(email, password) =>{
@@ -111,51 +162,14 @@ const loginByEmailAndPassword = async(email, password) =>{
     return user; //Login bem-sucedido, retorna os dados do usuario
 }
 
-//check cache first
-const getDefaultCurrencyByCurrencyId = async(defaultCurrencyId) =>{
-    try{
-        const currency = await prisma.usersCurrencies.findUnique({
-            where: {id: defaultCurrencyId},
-        });
 
-        if(!currency){
-            throw new Error('Moeda nao encontrada');
-        }
-        
-        return currency;
-    }catch(error){
-        console.error(error);
-        console.log("Erro ao recuperar o 'name' da moeda pelo id");
-        throw error;
-    }
-}
-
-//check cache first
-const getNameEmailAndCurrencyByUserId = async(userId) =>{
-    try{
-        const _getNameEmailAndCurrencyId = await prisma.users.findUnique({
-            select:{
-                name: true,
-                email: true,
-                defaultCurrencyId: true
-            },
-            where:{
-                id: userId
-            }
-        })
-        return _getNameEmailAndCurrencyId
-    }catch(error){
-        console.error("Erro ao buscar nome e email do usuario", error);
-        throw new Error('Erro ao buscar nome e email do usuario');
-    }
-}
 
 module.exports = {
+    getNameEmailAndCurrencyByUserId,
+    getDefaultCurrencyByCurrencyId,
     createStagedUser,
     createUser,
     findUserByEmail,
     verifyCode,
-    loginByEmailAndPassword,
-    getDefaultCurrencyByCurrencyId,
-    getNameEmailAndCurrencyByUserId
+    loginByEmailAndPassword
 };
