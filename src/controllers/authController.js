@@ -120,7 +120,7 @@ const loginController = async(req, res) =>{
                 httpOnly: true,
                 secure: isProduction,
                 sameSite: isProduction ? 'strict' : 'lax', //Mais flexivel em desenvolvimento
-                maxAge: 60 * 60 * 100 //Expira em 01 hora
+                maxAge: 60 * 60 * 300 //Expira em 03 horas
             });
             return res.status(200).json({message: "Logado com sucesso!"});
         }
@@ -145,7 +145,7 @@ const checkAuthStatusController = async(req, res) =>{
         });
 
     }catch(error){
-        console.error("Erro ao verificar se o usuario está autenticado");
+        console.error("Erro ao verificar se o usuario está autenticado", error);
         return res.status(404).json({message: "Erro ao verificar se o usuario está autenticado. Token invalido ou expirado"});
     }
 }
@@ -160,8 +160,8 @@ const logoutController = async(req, res) =>{
         });
         res.json({message: "Token JWT enviado via cookie http-only com expiração no passado com sucesso"})
     }catch(error){
-        console.error("Erro ao enviar token JWT via cookie http only com expiração no passado");
-        res.status(404).json({message: "Erro ao enviar token JWT via cookie http only com expiração no passado"})
+        console.error("Erro ao enviar token JWT via cookie http only com expiração no passado", error);
+        throw new Error('Erro ao enviar token JWT via cookie http only com expiração no passado');
     }
 }
 
