@@ -98,10 +98,9 @@ const updateAccountBalance = async(accountId, type, amount) => {
         return newBalance
     }catch(error){
         console.error("Erro ao atualizar o balanço da conta", error);
-        throw new Error("Erro ao atualizar o balanço da conta")
+        throw new Error("Erro ao atualizar o balanço da conta");
     }
 }
-
 
 module.exports = {
     getAccountsByUserId,
@@ -109,5 +108,5 @@ module.exports = {
     checkIfAccountExists,
     deleteAccountById,
     checkIfrecurringTransactionsExists,
-    updateAccountBalance
+    updateAccountBalance,
 }
