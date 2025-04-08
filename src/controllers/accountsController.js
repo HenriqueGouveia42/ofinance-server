@@ -160,7 +160,6 @@ const deleteAccount = async(req, res) =>{
         })
 
         return res.status(200).json({message: "Conta deletada com sucesso"});
-
     }catch(error){
         console.error("Erro ao tentar deletar conta", error);
         return res.status(404).json({message: "Erro ao tentar deletar conta"})
@@ -191,5 +190,6 @@ const renameAccount = async(req, res) =>{
         return res.status(404).json({message: "Erro ao renomear conta: ", error});
     }
 }
+
 
 module.exports = {createAccount, updateBalance, getAccounts, deleteAccount, renameAccount};
