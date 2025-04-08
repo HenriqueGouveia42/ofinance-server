@@ -3,6 +3,7 @@ const {prisma} = require('../config/prismaClient');
 const {checkIfTransactionTypeMatchesToCategoryType, newTransaction} = require('../services/transactionsServices')
 
 const {updateAccountBalance} = require('../services/accountsServices');
+const { redisClient, expireKeyTime } = require('../config/redis');
 
 const convertToISO = (dateString) =>{
     const date = new Date(dateString);
@@ -55,7 +56,6 @@ const createTransaction = async (req, res) =>{
         }
 
         //4)
-        console.log(typeof amount)
         if(amount > 100000000000 || amount < 0.01 || typeof amount != 'number'){
             return res.status(404).json({message: "Valor inserido acima do maximo permitido de 100 bilhões ou abaixo do minimo permitido de 1 centavo"})
         }
@@ -133,17 +133,31 @@ const monthMap = {
 const readMonthTransactions = async(req, res) =>{
     try{
         const {month, year} = req.query;
+
+        // Validação do mês e ano
+        if (!month || !year || isNaN(year) || !monthMap.hasOwnProperty(month)) {
+            return res.status(400).json({ error: "Mês ou ano inválido!" });
+        }
+
         const userId = req.user.id;
         
         if(!monthMap.hasOwnProperty(month)){
             return res.status(400).json({error: "Mes invalido!"})
         }
 
+        const cacheKey = `transactions:${userId}:${month}:${year}`;
+
+        const cachedData = await redisClient.get(cacheKey);
+
+        if(cachedData){
+            return res.status(200).json(JSON.parse(cachedData));
+        }
+
         const startDate = new Date(year, monthMap[month], 1);
         const endDate = new Date(year, monthMap[month]+1, 1);
 
         const transactions = await prisma.transactions.groupBy({
-            by: ['type'],
+            by: ['type', 'paid_out'],
             _sum: {
                 amount: true
             },
@@ -151,28 +165,19 @@ const readMonthTransactions = async(req, res) =>{
                 id: true
             },
             where: {
-                user_id: userId,
+                userId: userId,
                 payDay:{
                     gte: startDate,
                     lt: endDate
                 }
             }
         });
-
-        //Inicializa o objeto de resposta
-        const transactionsResult = {
-            sumMonthRevenue: 0,
-            sumMonthExpense: 0,
-        };
-
-        transactions.forEach(transaction =>{
-            if(transaction.type === 'revenue'){
-                transactionsResult.sumMonthRevenue = transaction._sum.amount || 0;
-            }else if(transaction.type === 'expense'){
-                transactionsResult.sumMonthExpense = transaction._sum.amount || 0;
-            }
-        })
-        return res.status(200).json({message: "Dados do mes lidos com sucesso", transactionsResult});
+        
+        if(Array.isArray(transactions)){
+            redisClient.setEx(cacheKey, expireKeyTime, JSON.stringify(transactions));
+            return res.status(200).json(transactions);
+        }
+        
     }catch(error){
         console.error('Erro ao tentar ler transacoes do mes', error);
         return res.status(500).json({error: "Erro ao tentar ler transacao"})
@@ -211,4 +216,9 @@ const getAllTransactions = async (req, res) =>{
     }
 }
 
-module.exports = { createTransaction, readMonthTransactions, readUnpaidTransactions, getAllTransactions };
+module.exports = {
+    createTransaction,
+    readMonthTransactions,
+    readUnpaidTransactions,
+    getAllTransactions
+};
