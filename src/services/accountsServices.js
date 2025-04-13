@@ -83,7 +83,7 @@ const checkIfrecurringTransactionsExists = async(accountId) =>{
     }
 }
 
-const updateAccountBalance = async(accountId, type, amount) => {
+const updateAccountBalanceService = async(accountId, type, amount) => {
     try{
         const updateData =
             type === "expense"
@@ -108,5 +108,5 @@ module.exports = {
     checkIfAccountExists,
     deleteAccountById,
     checkIfrecurringTransactionsExists,
-    updateAccountBalance,
+    updateAccountBalanceService,
 }
