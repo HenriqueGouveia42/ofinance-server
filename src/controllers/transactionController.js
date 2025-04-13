@@ -1,9 +1,11 @@
 const {prisma} = require('../config/prismaClient');
 
-const {checkIfTransactionTypeMatchesToCategoryType, newTransaction} = require('../services/transactionsServices')
+const {checkIfTransactionTypeMatchesToCategoryType, newTransaction, readMonthTransactionsService, readUnpaidTransactionsService} = require('../services/transactionsServices')
 
-const {updateAccountBalance} = require('../services/accountsServices');
-const { redisClient, expireKeyTime } = require('../config/redis');
+const {updateAccountBalanceService} = require('../services/accountsServices');
+
+const {invalidateAllKeysInCacheService} = require('../services/cacheService');
+
 
 const convertToISO = (dateString) =>{
     const date = new Date(dateString);
@@ -19,8 +21,10 @@ const createTransaction = async (req, res) =>{
             4) Testa se o valor inserido está dentro dos limites
             5) Verifica se o tipo ide transação é 'revenue' ou 'expense'
             6) Verifica se o tipo de transação ('revenue' ou 'expense') é compatível com o tipo de categoria escolhido ('revenue' ou 'expense')
-            7) Atualização do balanço da conta
-            8) Criar a nova transação
+            7) Revogar as keys do redis relacionadas a transacoes
+            8) Atualização do balanço da conta
+            9) Criar a nova transação
+            
         */
         const {
             amount,
@@ -41,7 +45,7 @@ const createTransaction = async (req, res) =>{
         const userId = req.user.id;
         
         //1)
-        if(!amount || !type || !payDay){
+        if(!amount || !type || !payDay || !payDay.startDate){
             return res.status(400).json({message: 'Campos obrigatorios estao ausentes!'})
         }
 
@@ -51,7 +55,7 @@ const createTransaction = async (req, res) =>{
         }
 
         //3) 
-        if(typeof attachment == "string" && (attachment.length > 200)){
+        if(typeof attachment !== "string" || (attachment.length > 200)){
             return res.status(400).json({message: "Attachment com mais de 200 caracteres"})
         }
 
@@ -73,16 +77,16 @@ const createTransaction = async (req, res) =>{
         await prisma.$transaction(async () =>{
 
             //7)
-            const newBalance = await updateAccountBalance(accountId, type, amount);
-            if(!newBalance){
-                return res.status(404).json({message: "Erro ao atualizar o balaço da conta"});
-            }
+            const invalidateAllKeysInCache = await invalidateAllKeysInCacheService('transactions');
+
+            //8)
+            const newBalance = await updateAccountBalanceService(accountId, type, amount);
 
             const now = new Date();
             const createdAt = now;
             const updatedAt =  now;
 
-            //8)
+            //9)
             const transaction = await newTransaction(
                 amount,
                 type,
@@ -105,8 +109,9 @@ const createTransaction = async (req, res) =>{
             if (!transaction){
                 return res.status(404).json({message: "Erro ao criar transacao"})
             }
-            
+
             return res.status(201).json({message: "Transacao criada com sucesso"})
+
         })
     }catch(error){
         console.error("Erro ao criar transacao.", error);
@@ -132,49 +137,24 @@ const monthMap = {
 
 const readMonthTransactions = async(req, res) =>{
     try{
+
         const {month, year} = req.query;
+        const userId = req.user.id;
+        const startDate = new Date(year, monthMap[month], 1);
+        const endDate = new Date(year, monthMap[month]+1, 1);
 
         // Validação do mês e ano
         if (!month || !year || isNaN(year) || !monthMap.hasOwnProperty(month)) {
             return res.status(400).json({ error: "Mês ou ano inválido!" });
         }
 
-        const userId = req.user.id;
-        
         if(!monthMap.hasOwnProperty(month)){
             return res.status(400).json({error: "Mes invalido!"})
         }
-
-        const cacheKey = `transactions:${userId}:${month}:${year}`;
-
-        const cachedData = await redisClient.get(cacheKey);
-
-        if(cachedData){
-            return res.status(200).json(JSON.parse(cachedData));
-        }
-
-        const startDate = new Date(year, monthMap[month], 1);
-        const endDate = new Date(year, monthMap[month]+1, 1);
-
-        const transactions = await prisma.transactions.groupBy({
-            by: ['type', 'paid_out'],
-            _sum: {
-                amount: true
-            },
-            _count: {
-                id: true
-            },
-            where: {
-                userId: userId,
-                payDay:{
-                    gte: startDate,
-                    lt: endDate
-                }
-            }
-        });
+        
+        const transactions = await readMonthTransactionsService(userId, startDate, endDate);
         
         if(Array.isArray(transactions)){
-            redisClient.setEx(cacheKey, expireKeyTime, JSON.stringify(transactions));
             return res.status(200).json(transactions);
         }
         
@@ -187,12 +167,8 @@ const readMonthTransactions = async(req, res) =>{
 const readUnpaidTransactions = async(req, res) =>{
     try{
         const userId = req.user.id;
-        const unpaidTransactions = await prisma.transactions.findMany({
-            where:{
-                userId: userId,
-                paid_out: false
-            }
-        })
+        
+        const unpaidTransactions = await readUnpaidTransactionsService(userId);
         
         return res.status(200).json(unpaidTransactions)
 
@@ -202,23 +178,8 @@ const readUnpaidTransactions = async(req, res) =>{
     }
 }
 
-const getAllTransactions = async (req, res) =>{
-    try{
-        const allTransactions = await prisma.transactions.findMany({
-            where:{
-                userId: req.user.id
-            }
-        })
-        return allTransactions ? res.status(200).json(allTransactions) : []
-    }catch(error){
-        console.error("Erro ao tentar buscar todas as transacoes do usuario")
-        return res.status(404).json({message: "Erro"})
-    }
-}
-
 module.exports = {
     createTransaction,
     readMonthTransactions,
     readUnpaidTransactions,
-    getAllTransactions
 };
