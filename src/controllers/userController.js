@@ -19,6 +19,7 @@ const getUserData = async(req, res) =>{
         };
         
         const nameEmailAndDefaultCurrencyId = await getNameEmailAndCurrencyByUserId(userId);
+        
         if(!nameEmailAndDefaultCurrencyId){
             return res.status(404).json({message: "Usuario nao encontrado"});
         }
