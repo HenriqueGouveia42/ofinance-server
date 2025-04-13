@@ -1,27 +1,33 @@
 const {redisClient} = require('../config/redis');
 
-const getOrSetCache = async(key, ttl, callback) =>{
-    try{
+const getOrSetCache = async (key, ttl, callback) => {
+    try {
         const cachedData = await redisClient.get(key);
-        
-        if(cachedData){
+
+        if (cachedData) {
             return JSON.parse(cachedData);
         }
 
-        const freshData = await callback()
+        const freshData = await callback();
 
-        await redisClient.set(key, ttl, JSON.stringify(freshData));
+        await redisClient.setEx(key, ttl, JSON.stringify(freshData)); // TTL correto
 
         return freshData;
-    }catch(error){
-        console.error('Erro no cache', error)
-        return callback(); //Se houver erro no cache, busca diretamente no banco de dados
+    } catch (error) {
+        console.error('Erro no cache', error);
+        return callback(); // fallback
     }
-}
+};
 
-const invalidateCache = async(key) =>{
+
+const invalidateAllKeysInCacheService = async(prefix) =>{
     try{
-        await redisClient.del(key);
+        const keys = await redisClient.keys(`${prefix}*`)
+        
+        if (keys.length > 0){
+            await redisClient.del(keys);
+        }
+
     }catch(error){
         console.error('Erro ao invalidar cache');
         throw new Error('Erro ao invalidar cache')
@@ -30,5 +36,5 @@ const invalidateCache = async(key) =>{
 
 module.exports = {
     getOrSetCache,
-    invalidateCache
+    invalidateAllKeysInCacheService
 }

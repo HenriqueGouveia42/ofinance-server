@@ -59,8 +59,8 @@ const createStagedUser = async ({ name, email, password, createdAt, expiresAt, v
         });
         return user;
     } catch (error) {
-        console.log(error);
-        return { error: 'Erro ao registrar usuario temporario no banco de dados' };
+        console.error('Erro ao registrar usuario temporario no banco de dados', error);
+        throw new Error("Erro ao registrar usuario temporario no banco de dados");
     }
 };
 
@@ -102,15 +102,14 @@ const createUser = async ({ email, name, password, createdAt }) => {
         })
         return result;
     } catch (error) {
-        return { error: 'Erro ao registrar usuario definitivo ou criar a moeda padrao no banco de dados' };
+        console.error('Erro ao registrar usuario definitivo ou criar a moeda padrao no banco de dados', error);
+        throw new Error('Erro ao registrar usuario definitivo ou criar a moeda padrao no banco de dados');
     }
     
 };
 
 const findUserByEmail = async(email) =>{
     try{
-       
-
         const stagedUser =  await prisma.stagedUsers.findUnique({
             where:{
                 email: email
@@ -142,24 +141,26 @@ const verifyCode = async(userId, code) =>{
 }
 
 const loginByEmailAndPassword = async(email, password) =>{
-    //Buscar o usuario pelo e-mail
-    const user = await prisma.users.findUnique({
-        where:{
-            email: email
+
+    try{
+        const user = await prisma.users.findUnique({
+            where:{
+                email: email
+            }
+        });
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        if(!isPasswordValid){
+            return false; //Senha invalida
         }
-    });
 
-    if(!user){
-        return false; //Usuario nao existe
+        return user;
+
+    }catch(error){
+        console.error('Erro ao fazer login', error);
+        throw new Error('Erro ao fazer login');
     }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    if(!isPasswordValid){
-        return false; //Senha invalida
-    }
-
-    return user; //Login bem-sucedido, retorna os dados do usuario
 }
 
 

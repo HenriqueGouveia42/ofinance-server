@@ -1,6 +1,8 @@
+const { parse } = require('dotenv');
 const {prisma} = require('../config/prismaClient');
 
-const {redisClient} = require('../config/redis');
+//Futuramente será implementado o cache
+const {getOrSetCache} = require('../services/cacheService');
 
 const newTransaction = async(
     amount,
@@ -53,9 +55,9 @@ const checkIfTransactionTypeMatchesToCategoryType = async (userId, TransactionTy
         
         const getCategory = await prisma.expenseAndRevenueCategories.findUnique({
             where:{
-                id: CategoryId,
                 userId: userId,
-                type: TransactionType
+                type: TransactionType,
+                id: CategoryId,
             }
         });
         
@@ -115,10 +117,74 @@ const getAllTransactionsByCurrencyId = async (userId, currencyId) =>{
     }
 }
 
+const readMonthTransactionsService = async (userId, startDate, endDate) =>{
+    try{
+        /*const readMonthT = async(async () =>{
+            await prisma.transactions.groupBy({
+                by: ['type', 'paid_out'],
+                _sum: {
+                    amount: true
+                },
+                _count: {
+                    id: true
+                },
+                where: {
+                    userId: userId,
+                    payDay:{
+                        gte: startDate,
+                        lt: endDate
+                    }
+                }
+            })
+        })*/
+        const readMonthT = await prisma.transactions.groupBy({
+            by: ['type', 'paid_out'],
+            _sum: {
+                amount: true
+            },
+            _count: {
+                id: true
+            },
+            where: {
+                userId: userId,
+                payDay:{
+                    gte: startDate,
+                    lt: endDate
+                }
+            }
+            });
+            return readMonthT
+    }catch(error){
+        console.error('Erro ao buscar as transacoes do mes');
+        throw new Error('Erro ao buscar as transacoes do mes')
+    }
+}
+
+const readUnpaidTransactionsService = async(userId) =>{
+    try{
+        
+        const unpaidTransactions = (async () =>{
+            await prisma.transactions.findMany({
+                where:{
+                    userId: userId,
+                    paid_out: false
+                }
+            })
+        })
+        
+        return unpaidTransactions;
+    }catch(error){
+        console.error("Erro ao ler as transações não pagas");
+        throw new Error("Erro no serviço de ler as transações não pagas")
+    }
+}
+
 module.exports ={
     checkIfTransactionTypeMatchesToCategoryType,
     newTransaction,
     getAllTransactionsByAccountId,
-    getAllTransactionsByCurrencyId
+    getAllTransactionsByCurrencyId,
+    readMonthTransactionsService,
+    readUnpaidTransactionsService
 }
 
