@@ -1,4 +1,3 @@
-const { parse } = require('dotenv');
 const {prisma} = require('../config/prismaClient');
 
 //Futuramente será implementado o cache
@@ -72,29 +71,6 @@ const checkIfTransactionTypeMatchesToCategoryType = async (userId, TransactionTy
     }
 }
 
-const getAllTransactionsByAccountId = async (userId, accountId) =>{
-    try{
-
-        const allTransByAccId = await prisma.transactions.findMany({
-            select:{
-
-                type: true,
-                amount: true
-            },
-            where:{
-                userId: userId,
-                accountId: accountId
-            }
-        })
-
-        
-        return allTransByAccId
-    }catch(error){
-        console.error("Erro ao buscar todas as transações vinculadas a esta conta", error);
-        return null
-    }
-}
-
 
 const getAllTransactionsByCurrencyId = async (userId, currencyId) =>{
     try{
@@ -117,36 +93,16 @@ const getAllTransactionsByCurrencyId = async (userId, currencyId) =>{
     }
 }
 
-const readMonthTransactionsService = async (userId, startDate, endDate) =>{
+const readMonthPaidTransactionsService = async (userId, startDate, endDate) =>{
     try{
-        /*const readMonthT = async(async () =>{
-            await prisma.transactions.groupBy({
-                by: ['type', 'paid_out'],
-                _sum: {
-                    amount: true
-                },
-                _count: {
-                    id: true
-                },
-                where: {
-                    userId: userId,
-                    payDay:{
-                        gte: startDate,
-                        lt: endDate
-                    }
-                }
-            })
-        })*/
         const readMonthT = await prisma.transactions.groupBy({
-            by: ['type', 'paid_out'],
+            by: ['type'],
             _sum: {
                 amount: true
             },
-            _count: {
-                id: true
-            },
             where: {
                 userId: userId,
+                paid_out: true,
                 payDay:{
                     gte: startDate,
                     lt: endDate
@@ -163,28 +119,106 @@ const readMonthTransactionsService = async (userId, startDate, endDate) =>{
 const readUnpaidTransactionsService = async(userId) =>{
     try{
         
-        const unpaidTransactions = (async () =>{
-            await prisma.transactions.findMany({
-                where:{
-                    userId: userId,
-                    paid_out: false
-                }
-            })
+       const [revenues, expenses] = await Promise.all([
+        prisma.transactions.aggregate({
+            where:{
+                userId,
+                type: 'revenue',
+                paid_out: false
+            },
+            _count: true,
+            _sum:{
+                amount: true
+            }
+        }),
+        prisma.transactions.aggregate({
+            where:{
+                userId,
+                type: 'expense',
+                paid_out: false
+            },
+            _count: true,
+            _sum:{
+                amount: true
+            }
         })
-        
-        return unpaidTransactions;
+       ]);
+        return {
+            pendingRevenueCount: revenues._count,
+            pendingRevenueTotal: revenues._sum.amount ?? 0,
+            pendingExpenseCount: expenses._count,
+            pendingExpensesTotal: expenses._sum.amount ?? 0
+        }
     }catch(error){
         console.error("Erro ao ler as transações não pagas");
         throw new Error("Erro no serviço de ler as transações não pagas")
     }
 }
 
+const updateTransactionService = async (userId, transactionId, updates) =>{
+    try{
+        
+        const allowedFields = [
+            'amount', 'type', 'paid_out', 'payDay', 'description', 'attachment',
+            'fixed', 'repeat', 'typeRepeat', 'remindMe'
+        ];
+
+        const invalidFields = Object.keys(updates).filter(key=>!allowedFields.includes(key));
+
+
+        if (invalidFields.length > 0){
+            throw new Error(`Campos invalidos: ${invalidFields.join(', ')}`);
+        }
+
+        const transaction = await prisma.transactions.findFirst({
+            where:{
+                id: transactionId,
+                userId: userId
+            }
+        });
+
+        if(!transaction){
+            throw new Error(`Transacao com id: ${transactionId} pertencente ao usuario com id: ${userId} nao encontrada`);
+        }
+
+        const updateAll = await prisma.$transaction(async () =>{
+
+            if (Object.keys(updates).includes('paid_out') && (updates.paid_out !== transaction.paid_out)) {
+                const balanceUpdateType = updates.paid_out ? 'increment' : 'decrement';
+    
+                //Altera o saldo da conta
+                const updateAccountBalance = await prisma.accounts.update({
+                    where: {
+                        id: transaction.accountId
+                    },
+                    data: {
+                        balance: {
+                            [balanceUpdateType]: transaction.amount
+                        }
+                    }
+                });
+            }
+    
+            const updatedTransaction = await prisma.transactions.update({
+                where:{id: transaction.id},
+                data: updates
+            })
+
+            return updatedTransaction;
+        })
+    }
+    catch(error){
+        console.error('Erro no servico de atualizar algum campo da transacao');
+        throw new Error('Erro no servico de atualizar algum campo da transacao');
+    }
+}
+
 module.exports ={
     checkIfTransactionTypeMatchesToCategoryType,
     newTransaction,
-    getAllTransactionsByAccountId,
     getAllTransactionsByCurrencyId,
-    readMonthTransactionsService,
-    readUnpaidTransactionsService
+    readMonthPaidTransactionsService,
+    readUnpaidTransactionsService,
+    updateTransactionService
 }
 
