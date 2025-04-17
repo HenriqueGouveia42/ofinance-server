@@ -4,15 +4,11 @@ const
         {
             getAccountsByUserId,
             checkIfAccountAlreadyExists,
-            checkIfAccountExists,
             deleteAccountById,
-            checkIfrecurringTransactionsExists
+            checkIfrecurringTransactionsExists,
+            deleteAccountService
         } = require('../services/accountsServices')
 
-const
-        {
-            getAllTransactionsByAccountId
-        } = require('../services/transactionsServices')
 
 const createAccount = async(req, res) =>{
     try{
@@ -30,10 +26,20 @@ const createAccount = async(req, res) =>{
             return res.status(400).json({message: "Usuario já tem uma conta com esse nome!"})
         }
 
+        const toTitleCase = (str) => {
+            return str
+              .toLowerCase()
+              .split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+        };
+
+        const titleCaseAccountName = toTitleCase(accountName)
+
         const account = await prisma.accounts.create({
             data:{
                 userId: req.user.id,
-                name: accountName,
+                name: titleCaseAccountName,
                 balance: 0
             }
         });
@@ -77,87 +83,17 @@ const updateBalance = async(req, res) =>{
 }
 
 const deleteAccount = async(req, res) =>{
-    /*
-        Algoritmo para deletar uma conta
-        1) Descobrir todas as transações vinculadas a esta conta
-        2) Somar todos os balanços, positivos se de receita, negativos se de despesa, de todas transações vinculadas a esta conta
-        3) Verifica se existem transações recorrentes vinculadas a esta conta. Se existir, a conta não pode ser deletada
-        4) Atualizar o novo valor de balanço da conta
-        5) Deletar todas as transações vinculadas a esta conta
-        6) Deletar a conta em si
-    */
+   
     try{
 
         const {accountId} = req.body;
-        
         const {userId} = req.user.id;
 
-        if(typeof accountId ==! "Number"){
+        if(typeof accountId ==! "number"){
             return res.status(400).json({message: "Id da conta a ser deletada invalido"})
         }
 
-        const accountExists = await checkIfAccountExists(accountId, userId);
-
-        if(!accountExists){
-            return res.status(404).json({message: "Conta não existe para este usuario"});
-        }
-        //1)
-        const allTransactionsByAccountId = await getAllTransactionsByAccountId(userId, accountId);
-
-        if (allTransactionsByAccountId.length == 0 || !allTransactionsByAccountId){
-            const delAcc = await deleteAccountById(userId, accountId);
-            return res.status(200).json({message: "Não existem transacoes vinculadas a esta conta. Conta deletada com sucesso!"})
-        }
-
-        //2)
-        const typeAndTotalBalance = [
-            {type: "revenue", totalBalance: 0},
-            {type: "expense", totalBalance : 0}
-        ]
-        allTransactionsByAccountId.forEach(transaction =>{
-            transaction.type === "revenue"
-            ?   typeAndTotalBalance[0].totalBalance += transaction.amount
-            :   typeAndTotalBalance[1].totalBalance += transaction.amount            
-        })
-
-        //3)
-        const recurringTransactionsExists = await checkIfrecurringTransactionsExists(accountId);
-
-        if(recurringTransactionsExists){
-            console.log("Esta conta tem transações recorrentes. Cancele ou transfira as transacoes recorrentes para outra conta");
-            return res.status(404).json({message: "Esta conta tem transações recorrentes. Cancele ou transfira as transacoes recorrentes para outra conta"});
-        }
-
-        await prisma.$transaction(async (prisma) =>{
-            //4)
-            const balanceResult = typeAndTotalBalance[0].totalBalance - typeAndTotalBalance[1].totalBalance
-
-            const adjustBalance = await prisma.accounts.update({
-                where:{
-                    id: accountId,
-                    userId: userId,
-                },
-                data:{
-                    balance: balanceResult < 0
-                    ?   {decrement: Math.abs(balanceResult)}
-                    :   {increment: Math.abs(balanceResult)}
-                }
-            })
-            //5
-            const deleteTransactionsByAccountId = await prisma.transactions.deleteMany({
-                where:{
-                    userId: userId,
-                    accountId: accountId
-                }
-            });
-            //6
-            const deleteAccount = await prisma.accounts.delete({
-                where:{
-                    id: accountId,
-                    userId: userId
-                }
-            })
-        })
+        const delAcc = await deleteAccountService(userId, accountId);
 
         return res.status(200).json({message: "Conta deletada com sucesso"});
     }catch(error){
