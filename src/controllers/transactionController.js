@@ -1,6 +1,6 @@
 const {prisma} = require('../config/prismaClient');
 
-const {checkIfTransactionTypeMatchesToCategoryType, newTransaction, readMonthTransactionsService, readUnpaidTransactionsService} = require('../services/transactionsServices')
+const {checkIfTransactionTypeMatchesToCategoryType, newTransaction, readMonthPaidTransactionsService, readUnpaidTransactionsService, updateTransactionService} = require('../services/transactionsServices')
 
 const {updateAccountBalanceService} = require('../services/accountsServices');
 
@@ -80,7 +80,7 @@ const createTransaction = async (req, res) =>{
             const invalidateAllKeysInCache = await invalidateAllKeysInCacheService('transactions');
 
             //8)
-            const newBalance = await updateAccountBalanceService(accountId, type, amount);
+            const newBalance = await updateAccountBalanceService(accountId, type, amount, paid_out);
 
             const now = new Date();
             const createdAt = now;
@@ -135,7 +135,7 @@ const monthMap = {
     Dezembro: 11
 }
 
-const readMonthTransactions = async(req, res) =>{
+const readPaidMonthTransactions = async(req, res) =>{
     try{
 
         const {month, year} = req.query;
@@ -152,7 +152,7 @@ const readMonthTransactions = async(req, res) =>{
             return res.status(400).json({error: "Mes invalido!"})
         }
         
-        const transactions = await readMonthTransactionsService(userId, startDate, endDate);
+        const transactions = await readMonthPaidTransactionsService(userId, startDate, endDate);
         
         if(Array.isArray(transactions)){
             return res.status(200).json(transactions);
@@ -178,8 +178,31 @@ const readUnpaidTransactions = async(req, res) =>{
     }
 }
 
+const updateTransaction = async(req, res) =>{
+    try{
+        const {transactionId, updates} = req.body;
+        const userId = req.user.id;
+
+        if(!transactionId || !updates){
+            return res.status(400).json({message: "Campos obrigatorios faltando!"});
+        }
+        
+        const update = await updateTransactionService(userId, transactionId, updates);
+
+        if(!update){
+            return res.status(404).json({message: 'Erro ao editar transacao'});
+        }
+
+        return res.status(200).json({message: "Transacao alterada com sucesso!"})
+    }catch(error){
+        console.error('Erro ao editar a transacao');
+        throw new Error('Erro ao editar transacao');
+    }
+}
+
 module.exports = {
     createTransaction,
-    readMonthTransactions,
+    readPaidMonthTransactions,
     readUnpaidTransactions,
+    updateTransaction
 };
