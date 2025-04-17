@@ -1,8 +1,7 @@
 const jwt = require("jsonwebtoken");
 
-// O authMiddleware verifica se o token JWT armazenado no cookie é válido antes de permitir o acesso à rota protegida.
-// Funciona como uma "ponte" entre o client e o server.
-// Exemplo de fluxo: /localhost:5000/transaction -> authMiddleware -> transactionRoutes
+// O authMiddleware verifica se o token JWT enviado via cookie é valido
+// localhost:5000/transaction -> authMiddleware -> transactionRoutes
 
 const authMiddleware = (req, res, next) =>{
     
