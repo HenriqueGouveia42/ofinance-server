@@ -22,7 +22,17 @@ const newCategory = async(req, res) =>{
             return res.status(400).json({message: 'Usuario já tem uma categoria de receita ou despesa com esse nome!'});
         }
 
-        const category = await createCategory(name, type, req.user.id);
+        const toTitleCase = (str) => {
+            return str
+              .toLowerCase()
+              .split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+        };
+
+        const titleCaseName = toTitleCase(name);
+
+        const category = await createCategory(titleCaseName, type, req.user.id);
 
         if(!category){
             return res.status(400).json({message: "Erro na criação da categoria"});
