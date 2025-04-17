@@ -27,16 +27,16 @@ app.use(cors({
     credentials: true, // Permite o envio de cookies
 })); // Habilita CORS para permitir requisições de outras origens
 
-app.use('/auth/signup', signUpRoutes); //Registro de usuarios
-app.use('/auth/login', loginRoutes); // Login
-app.use('/auth/logout', logoutRoutes); //Logout - Remover cookies http only
+app.use('/auth/signup', signUpRoutes);
+app.use('/auth/login', loginRoutes);
+app.use('/auth/logout', logoutRoutes);
 app.use('/user', authMiddleware, userRoutes);
 app.use('/transaction', authMiddleware, transactionRoutes);
 app.use('/accounts', authMiddleware, accountsRoutes);
 app.use('/category', authMiddleware, categoriesRoutes);
 app.use('/currency', authMiddleware, currencyRoutes);
 
-const PORT = process.env.PORT || 5000; // Iniciar o servidor
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log('Servidor rodando na porta: ' + PORT);
 });
