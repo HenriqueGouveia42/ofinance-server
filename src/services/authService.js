@@ -7,7 +7,7 @@ const generateToken = (user) =>{
         defaultCurrencyId: user.defaultCurrencyId
     }
     return jwt.sign(payLoad, process.env.JWT_SECRET,{
-        expiresIn: '3h',
+        expiresIn: "3h",
         }
     );
 }
