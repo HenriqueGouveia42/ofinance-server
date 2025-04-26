@@ -189,11 +189,8 @@ const updateTransaction = async(req, res) =>{
         
         const update = await updateTransactionService(userId, transactionId, updates);
 
-        if(!update){
-            return res.status(404).json({message: 'Erro ao editar transacao'});
-        }
-
         return res.status(200).json({message: "Transacao alterada com sucesso!"})
+        
     }catch(error){
         console.error('Erro ao editar a transacao');
         throw new Error('Erro ao editar transacao');

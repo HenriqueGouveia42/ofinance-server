@@ -183,8 +183,22 @@ const updateTransactionService = async (userId, transactionId, updates) =>{
 
         const updateAll = await prisma.$transaction(async () =>{
 
+            const updatedTransaction = await prisma.transactions.update({
+                where:{id: transaction.id},
+                data: updates
+            })
+
             if (Object.keys(updates).includes('paid_out') && (updates.paid_out !== transaction.paid_out)) {
-                const balanceUpdateType = updates.paid_out ? 'increment' : 'decrement';
+                
+                let balanceUpdateType = '';
+
+                if(transaction.type == 'revenue'){
+                    balanceUpdateType = updates.paid_out ? 'increment' : 'decrement'
+                }
+
+                if(transaction.type == 'expense'){
+                    balanceUpdateType = updates.paid_out ? 'decrement' : 'increment'
+                }
     
                 //Altera o saldo da conta
                 const updateAccountBalance = await prisma.accounts.update({
@@ -199,10 +213,15 @@ const updateTransactionService = async (userId, transactionId, updates) =>{
                 });
             }
     
-            const updatedTransaction = await prisma.transactions.update({
-                where:{id: transaction.id},
-                data: updates
-            })
+            if(Object.keys(updates).includes('amount')){
+
+                const updateAccountBalance = prisma.accounts.update({
+                    where:{id: transaction.accountId},
+                    data:{
+                        balance: updates.amount
+                    }
+                })
+            }
 
             return updatedTransaction;
         })
