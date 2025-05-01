@@ -14,9 +14,11 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_PASSWORD,
     },
 });
+
 //Funcao para enviar codigo de confirmacao ao usuario
-const sendConfirmationEmail = async(to, code) =>{
+const sendConfirmationCodeToEmailService = async(to, code) =>{
     try{
+        
         const mailOptions = {
             from: process.env.EMAIL_FROM, //Remetente
             to: to, //Destinatariao
@@ -33,7 +35,7 @@ const sendConfirmationEmail = async(to, code) =>{
 }
 
 module.exports ={
-    sendConfirmationEmail,
+    sendConfirmationCodeToEmailService,
 }
 
 
