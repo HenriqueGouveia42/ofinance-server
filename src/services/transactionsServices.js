@@ -109,7 +109,7 @@ const readMonthPaidTransactionsService = async (userId, startDate, endDate) =>{
                 }
             }
             });
-            return readMonthT
+            return readMonthT;
     }catch(error){
         console.error('Erro ao buscar as transacoes do mes');
         throw new Error('Erro ao buscar as transacoes do mes')
