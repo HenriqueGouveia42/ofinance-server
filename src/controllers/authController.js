@@ -4,8 +4,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');  // Adicione essa linha para importar o JWT
 
 
-const {createStagedUser, createUser, findUserByEmail, verifyCode, loginByEmailAndPassword} = require('../services/userService');
-const {sendConfirmationEmail} = require('../services/emailService');
+const {createStagedUserService, createUserService, findStagedUserByEmailService, verifyStagedUserCodeService, loginByEmailAndPassword, deleteStagedUserService} = require('../services/userService');
+const {sendConfirmationCodeToEmailService} = require('../services/emailService');
 const {generateToken, verifyToken} = require('../services/authService');
 
 const generateVerificationCode = () =>{
@@ -17,8 +17,8 @@ const signUpController = async (req, res) => {
         
         const { email, name, password } = req.body;
 
-        if (!email || !name || !password) {
-            return res.status(400).json({ message: 'Por favor, preencha todos os campos' });
+        if (typeof email != 'string' || typeof name != 'string' || typeof password != 'string') {
+            return res.status(400).json({ message: 'Algum campo ausente ou não é string' });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -28,7 +28,7 @@ const signUpController = async (req, res) => {
         const createdAt = new Date();
         const expiresAt = new Date(createdAt.getTime() + 1000 * 60 * 10);
 
-        const newStagedUser = await createStagedUser({
+        const newStagedUser = await createStagedUserService({
             name: name,
             email: email,
             password: hashedPassword,
@@ -37,16 +37,12 @@ const signUpController = async (req, res) => {
             verificationCode: verificationCode
         });
 
+        await sendConfirmationCodeToEmailService(newStagedUser.email, newStagedUser.verificationCode);
 
-        if (newStagedUser.error) {
-            return res.status(400).json({ message: newStagedUser.error + "Erro ao criar um novo registro em stagedUsers" });
-        }
+        res.status(201).json({ message: "Usuário cadastrado com sucesso. Verifique o código de confirmação enviado por e-mail!" });
 
-        //await sendConfirmationEmail(newStagedUser.email, newStagedUser.verificationCode);
-
-        res.status(201).json({ message: 'Usuário cadastrado com sucesso. Verifique o código de confirmação enviado por e-mail!' });
     } catch (error) {
-        console.error(error);
+        console.error('Erro ao registrar usuario', error);
         res.status(500).json({ message: 'Erro ao cadastrar usuario.' });
     }
 };
@@ -55,35 +51,41 @@ const verifyCodeController = async(req, res) =>{
     try{
         const {email, code} = req.body;
 
-        if(!code){
-            return res.status(404).json({message: "Codigo Invalido ou Expirado!"});
-        }
-
-        if(!email){
-            return res.status(404).json({message: "E-mail invalido!"});
+        if(typeof code != 'string' || typeof email != 'string'){
+            return res.status(404).json({message: "Email ou codigo vazios ou invalidos"});
         }
         
-        const user = await findUserByEmail(email);
-        if (!user){
+        const stagedUser = await findStagedUserByEmailService(email);
+
+        if (!stagedUser){
             return res.status(404).json({message: "Email do Usuario nao encontrado"});
         }
 
-        const isValid = await verifyCode(user.id, code);
-        if(!isValid){
+        const isCodeValid = await verifyStagedUserCodeService(code, email);
+
+        if(!isCodeValid){
             return res.status(404).json({message: "Codigo invalido ao expirado"});
         }
 
-        const newUser = await createUser({
-            email: user.email,
-            name: user.name,
-            password: user.password,
-            createdAt: user.createdAt
+        const newUser = await createUserService({
+            email: stagedUser.email,
+            name: stagedUser.name,
+            password: stagedUser.password,
+            createdAt: stagedUser.createdAt
         })
+
         if (newUser.error){
             return res.status(404).json({message: "Erro ao cadastrar na tabela de usuarios definitivos"});
         }
 
+        const deleteStagedUser = await deleteStagedUserService(email);
+
+        if(!deleteStagedUser){
+            return res.status(404).json({message: "Erro ao deletar usuario temporario"});
+        }
+
         return res.status(201).json({message: "Codigo verificado com sucesso! Usuario Cadastrado na tabela de usuarios definitivos!"});
+
     }catch(error){
 
         console.error(error);
@@ -96,35 +98,30 @@ const loginController = async(req, res) =>{
     try{
         const {email, password} = req.body;
 
-        if(!email){
-            return res.status(404).json({message: "Email é obrigatorio"})
+        if(typeof email != 'string' || typeof password != 'string'){
+            return res.status(404).json({message: 'Algum campo está ausente ou é inválido'});
         }
 
-        if(!password){
-            return res.status(404).json({message: "Senha é obrigatoria"})
-        }
-
-        //Se o email e a senha existirem no banco de dados, retorna true
         const user = await loginByEmailAndPassword(email, password);
 
         if(!user){
             return res.status(401).json({message: "Credenciais invalidas!"}) //401 - unauthorized
-        }else{ //Email e senha existem no banco de dados. Sucesso!
-
-            const token = generateToken(user);
-
-            const isProduction = process.env.NODE_ENV === 'production';
-
-            //Configura o cookie HttpOnly com o token
-            res.cookie("access_token", token, {
-                httpOnly: true,
-                secure: isProduction,
-                sameSite: isProduction ? 'strict' : 'lax', //Mais flexivel em desenvolvimento
-                maxAge: 60 * 60 * 300 //Expira em 03 horas
-            });
-            return res.status(200).json({message: "Logado com sucesso!"});
         }
 
+        const token = generateToken(user);
+
+        const isProduction = process.env.NODE_ENV === 'production';
+
+        //Configura o cookie HttpOnly com o token
+        res.cookie("access_token", token, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'strict' : 'lax', //Mais flexivel em desenvolvimento
+            maxAge: 60 * 60 * 300 //Expira em 03 horas
+        });
+
+        return res.status(200).json({message: "Logado com sucesso!"});
+    
     }catch(error){
         console.error(error);
         res.status(500).json({message: "Erro interno ao servidor"});
