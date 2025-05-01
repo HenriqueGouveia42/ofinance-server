@@ -45,7 +45,7 @@ const getDefaultCurrencyByCurrencyId = async(defaultCurrencyId) =>{
     }
 }
 
-const createStagedUser = async ({ name, email, password, createdAt, expiresAt, verificationCode }) => {
+const createStagedUserService = async ({ name, email, password, createdAt, expiresAt, verificationCode }) => {
     try {
         const user = await prisma.stagedUsers.create({
             data:{ 
@@ -64,10 +64,10 @@ const createStagedUser = async ({ name, email, password, createdAt, expiresAt, v
     }
 };
 
-const createUser = async ({ email, name, password, createdAt }) => {
+const createUserService = async ({ email, name, password, createdAt }) => {
     try {
         const result = await prisma.$transaction(async (prisma)=>{
-            //Criar user
+            
             const user = await prisma.users.create({
                 data:{
                     email,
@@ -108,7 +108,7 @@ const createUser = async ({ email, name, password, createdAt }) => {
     
 };
 
-const findUserByEmail = async(email) =>{
+const findStagedUserByEmailService = async(email) =>{
     try{
         const stagedUser =  await prisma.stagedUsers.findUnique({
             where:{
@@ -123,19 +123,31 @@ const findUserByEmail = async(email) =>{
     }
 }
 
-const verifyCode = async(userId, code) =>{
+const verifyStagedUserCodeService = async(code, email) =>{
     try{
-        const user = await prisma.stagedUsers.findUnique({where:{id: userId}});
 
-        if(!user || user.verificationCode !== code) return false;
+        const stagedUser = await prisma.stagedUsers.findFirst({
+            where:{
+                verificationCode: code,
+                email: email
+            }
+        })
 
         const now = new Date();
 
-        if(user.expiresAt < now) return false;
+        if (stagedUser.expiresAt <= now){ //expired stagedUser
+            const deleteStagedUser = await prisma.stagedUsers.delete({
+                where:{
+                    email: email
+                }
+            })
+            return false;
+        }
 
-        return true;
+        return stagedUser &&  stagedUser.expiresAt > now;
+
     }catch(error){
-        console.error('Erro ao verificar codigo');
+        console.error('Erro ao verificar codigo', error);
         throw new Error('Erro ao verificar codigo');
     }
 }
@@ -163,14 +175,30 @@ const loginByEmailAndPassword = async(email, password) =>{
     }
 }
 
+const deleteStagedUserService = async(email) =>{
+    try{
+        deleteStU = await prisma.stagedUsers.delete({
+            where:{
+                email: email
+            }
+        });
+        return deleteStU;
+    }
+    catch(error){
+        console.error('Erro ao deletar usuario temporario', error);
+        throw new Error('Erro ao deletar usuario temporario');
+    }
+}
+
 
 
 module.exports = {
     getNameEmailAndCurrencyByUserId,
     getDefaultCurrencyByCurrencyId,
-    createStagedUser,
-    createUser,
-    findUserByEmail,
-    verifyCode,
-    loginByEmailAndPassword
+    createStagedUserService,
+    createUserService,
+    findStagedUserByEmailService,
+    verifyStagedUserCodeService,
+    loginByEmailAndPassword,
+    deleteStagedUserService
 };
