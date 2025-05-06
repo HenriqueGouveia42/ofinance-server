@@ -19,7 +19,6 @@ const newTransaction = async(
     userId,
     categoryId,
     accountId,
-    currencyId,
 ) => {
     try{
         const transaction = await prisma.transactions.create({
@@ -39,7 +38,6 @@ const newTransaction = async(
                 userId,
                 categoryId,
                 accountId,
-                currencyId
             }
         })
         return transaction;
@@ -68,28 +66,6 @@ const checkIfTransactionTypeMatchesToCategoryType = async (userId, TransactionTy
     }catch(error){
         console.error("Erro ao verificar se o tipo de transacao escolhido confere com o tipo de categoria", error);
         throw new Error("Erro ao validar categoria da transação ou tipo da transação não bate com o tipo da categoria");
-    }
-}
-
-
-const getAllTransactionsByCurrencyId = async (userId, currencyId) =>{
-    try{
-        
-        const allTr = await prisma.transactions.findMany({
-            select:{
-                amount: true,
-                type: true,
-                accountId: true
-            },
-            where:{
-                userId: userId,
-                currencyId: currencyId
-            }
-        })
-        return allTr;
-    }catch(error){
-        console.error("Erro ao buscar transações vinculadas a esta moeda", error);
-        return null;
     }
 }
 
@@ -232,12 +208,54 @@ const updateTransactionService = async (userId, transactionId, updates) =>{
     }
 }
 
+const deleteTransactionService = async (transactionId) =>{
+    try{
+
+        const transaction = await prisma.transactions.findUnique({
+            where:{
+                id: transactionId
+            }
+        })
+
+        if (!transaction) {
+            throw new Error('Transação não encontrada');
+        }
+
+        const operation = transaction.type === 'revenue' ? 'decrement' : 'increment';
+
+        await prisma.$transaction(async (tx) =>{
+
+            await tx.accounts.update({
+                where:{
+                    id: transaction.accountId
+                },
+                data:{
+                    balance:{
+                        [operation]: transaction.amount
+                    }
+                }
+            })
+    
+            await tx.transactions.delete({
+                where:{
+                    id: transaction.id
+                }
+            })
+
+        })
+
+    }catch(error){
+        console.error('Erro no servico de deletar uma transacao', error);
+        throw error('Erro no servico de deletar uma transacao');
+    }
+}
+
 module.exports ={
     checkIfTransactionTypeMatchesToCategoryType,
     newTransaction,
-    getAllTransactionsByCurrencyId,
     readMonthPaidTransactionsService,
     readUnpaidTransactionsService,
-    updateTransactionService
+    updateTransactionService,
+    deleteTransactionService
 }
 
