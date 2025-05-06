@@ -21,6 +21,9 @@ model stagedUsers {
   createdAt        DateTime @default(now())
   expiresAt        DateTime
   verificationCode String
+
+  @@index([expiresAt])
+
 }
 
 model Users {
@@ -29,31 +32,11 @@ model Users {
   email             String   @unique
   password          String
   createdAt         DateTime @default(now())
-  defaultCurrencyId Int?     @unique // Chave estrangeira opcional para a moeda padrão
 
-  defaultCurrency UsersCurrencies?              @relation("defaultCurrency", fields: [defaultCurrencyId], references: [id])
   transactions    Transactions[] // Relacionamento 1 para N com a tabela Transactions
-  currencies      UsersCurrencies[]             @relation("userCurrencies") // Relacionamento 1 para N com a tabela UsersCurrencies
   accounts        Accounts[] //Relacionamento 1 para N com a tabela Accounts
   categories      ExpenseAndRevenueCategories[] //Relacionamento 1 para N com a tabela ExpenseAndRevenueCategories
 
-  @@index([id])
-}
-
-model UsersCurrencies {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  name      String
-  symbol    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  users          Users          @relation("userCurrencies", fields: [userId], references: [id])
-  defaultForUser Users?         @relation("defaultCurrency")
-  Transactions   Transactions[]
-
-  @@unique([userId, name]) //Reforça que um usuário não pode criar duas moedas com o mesmo nome
-  @@index([userId])
 }
 
 enum TransactionType{
@@ -80,13 +63,11 @@ model Transactions {
   userId    Int //Chave estrangeira para o usuario
   categoryId Int //Chave estrangeira para a categoria
   accountId  Int //Chave estrangeira para a conta
-  currencyId Int //Chave estrangeira para a moeda utilizada
 
   user     Users                       @relation(fields: [userId], references: [id]) //Relacionamento com a tabela Users[]
   category ExpenseAndRevenueCategories @relation(fields: [categoryId], references: [id]) //Relacionamento com a tabela ExpenseAndRevenueCategories[]
   account  Accounts                    @relation(fields: [accountId], references: [id]) //Relacionamento com a tabela Accounts[]
-  currency UsersCurrencies             @relation(fields: [currencyId], references: [id])
-
+  
   @@index([payDay, userId])
 }
 
