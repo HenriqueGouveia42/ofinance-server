@@ -1,6 +1,6 @@
 const {prisma} = require('../config/prismaClient');
 
-const {checkIfTransactionTypeMatchesToCategoryType, newTransaction, readMonthPaidTransactionsService, readUnpaidTransactionsService, updateTransactionService} = require('../services/transactionsServices')
+const {checkIfTransactionTypeMatchesToCategoryType, newTransaction, readMonthPaidTransactionsService, readUnpaidTransactionsService, updateTransactionService, deleteTransactionService} = require('../services/transactionsServices')
 
 const {updateAccountBalanceService} = require('../services/accountsServices');
 
@@ -39,7 +39,6 @@ const createTransaction = async (req, res) =>{
             remindMe,
             categoryId,
             accountId,
-            currencyId
         } = req.body;
 
         const userId = req.user.id;
@@ -72,7 +71,7 @@ const createTransaction = async (req, res) =>{
         //6)
         const isTransactionsTypeCorrect = await checkIfTransactionTypeMatchesToCategoryType(userId, type, categoryId);
 
-        const isoPayDay = convertToISO(payDay.startDate);
+       const isoPayDay = convertToISO(payDay.startDate);
 
         await prisma.$transaction(async () =>{
 
@@ -103,7 +102,6 @@ const createTransaction = async (req, res) =>{
                 userId,
                 categoryId,
                 accountId,
-                currencyId 
             )
 
             if (!transaction){
@@ -197,8 +195,28 @@ const updateTransaction = async(req, res) =>{
     }
 }
 
+const deleteTransaction = async(req, res) =>{
+    try{
+        const {transactionId} = req.body;
+
+        await deleteTransactionService(transactionId);
+
+        return res.status(200).json({message: "Transacao deletada com sucesso"});
+    }catch(error){
+        
+        console.error('Erro ao deletar uma transação:', error.message);
+
+        if (error.message === 'Transação não encontrada') {
+            return res.status(404).json({ message: error.message });
+        }
+
+        return res.status(500).json({ message: 'Erro interno no servidor' })
+    }
+}
+
 module.exports = {
     createTransaction,
+    deleteTransaction,
     readPaidMonthTransactions,
     readUnpaidTransactions,
     updateTransaction
