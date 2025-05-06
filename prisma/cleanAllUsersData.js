@@ -15,8 +15,6 @@ async function cleanAllUsersData(){
 
         await prisma.expenseAndRevenueCategories.deleteMany();
 
-        await prisma.usersCurrencies.deleteMany();
-
         console.log("Todos os dados de todos os usuarios foram limpos com sucesso")
     }catch(error){
         console.error("Erro ao tentar limpar as contas, as categorias de receitas e despesas e as moedas dos usuarios: ", error);
