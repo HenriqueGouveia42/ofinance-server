@@ -8,7 +8,12 @@ redisClient.on('error', (err) => console.error('Erro no redis: ', err));
 
 (async () =>{
     try{
-        await redisClient.connect();
+        await redisClient.connect({
+            socket:{
+                host: process.env.REDIS_HOST,
+                port: process.env.REDIS_PORT
+            }
+        });
         console.log('Conectado ao redis');
     }catch(error){
         console.error('Falha ao conectar ao Redis: ', error)
