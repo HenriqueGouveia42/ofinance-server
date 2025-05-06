@@ -5,7 +5,6 @@ const
             getAccountsByUserId,
             checkIfAccountAlreadyExists,
             deleteAccountById,
-            checkIfrecurringTransactionsExists,
             deleteAccountService
         } = require('../services/accountsServices')
 
