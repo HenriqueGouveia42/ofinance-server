@@ -4,21 +4,20 @@ const {prisma} = require('../config/prismaClient');
 const {redisClient} = require('../config/redis')
 
 
-const getNameEmailAndCurrencyByUserId = async(userId) =>{
+const getNameAndEmailByUserId = async(userId) =>{
     try{
     
-        const _getNameEmailAndCurrencyId = await prisma.users.findUnique({
+        const _getNameAndEmail = await prisma.users.findUnique({
             select:{
                 name: true,
                 email: true,
-                defaultCurrencyId: true
             },
             where:{
                 id: userId
             }
         })
 
-        return _getNameEmailAndCurrencyId
+        return _getNameAndEmail;
     }catch(error){
         console.error("Erro ao buscar nome e email do usuario", error);
         throw new Error('Erro ao buscar nome e email do usuario');
@@ -193,7 +192,7 @@ const deleteStagedUserService = async(email) =>{
 
 
 module.exports = {
-    getNameEmailAndCurrencyByUserId,
+    getNameAndEmailByUserId,
     getDefaultCurrencyByCurrencyId,
     createStagedUserService,
     createUserService,
