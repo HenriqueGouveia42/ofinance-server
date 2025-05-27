@@ -4,7 +4,7 @@
   "description": "server",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js",
+    "start": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Henrique Silva Gouveia de Oliveira",
@@ -21,6 +21,7 @@
     "redis": "^4.7.0"
   },
   "devDependencies": {
+    "nodemon": "^3.1.10",
     "prisma": "^6.5.0"
   }
 }
