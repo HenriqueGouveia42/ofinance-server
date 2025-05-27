@@ -1,6 +1,18 @@
 const {createClient} = require('redis');
 
-const redisClient = createClient();
+const isDocker = process.env.DOCKER === 'true'
+
+const redisHost = isDocker ? process.env.DOCKER_REDIS_HOST : process.env.LOCAL_REDIS_HOST
+const redisPort = isDocker ? process.env.DOCKER_REDIS_PORT : process.env.LOCAL_REDIS_PORT
+
+console.log(redisHost, redisPort)
+
+const redisClient = createClient({
+    socket:{
+        host: redisHost,
+        port: redisPort
+    }
+});
 
 const expireKeyTime = 600; //seconds
 
@@ -8,12 +20,7 @@ redisClient.on('error', (err) => console.error('Erro no redis: ', err));
 
 (async () =>{
     try{
-        await redisClient.connect({
-            socket:{
-                host: process.env.REDIS_HOST,
-                port: process.env.REDIS_PORT
-            }
-        });
+        await redisClient.connect();
         console.log('Conectado ao redis');
     }catch(error){
         console.error('Falha ao conectar ao Redis: ', error)
