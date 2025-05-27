@@ -1,22 +1,26 @@
-#Usa a imagem oficial do Node.js
-FROM node:20
+# Usa a imagem oficial do Node.js
+FROM node:latest
 
 WORKDIR /app
 
-#Copia os arquivos de dependencias primeiro (para aproveitar cache)
+# Copia apenas os arquivos de dependência
 COPY package*.json ./
 
-#Instala as dependências (Inclusive Prisma)
+# Instala dependências
 RUN npm install
 
-#Copia todos os arquivos do projeto
+# Copia o restante do projeto
 COPY . .
 
-#Garante que o Prisma CLI esteja acessivel
+# Gera o client do Prisma
 RUN npx prisma generate
 
-#Expoe a porta do backend
+# Expõe a porta
 EXPOSE 5000
 
-#Inicia o servidor
+# Comando para iniciar o servidor
 CMD ["npm", "start"]
+
+
+
+# Instrucoes para criar a imagem do ambiente
