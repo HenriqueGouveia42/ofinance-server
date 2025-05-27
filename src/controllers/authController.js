@@ -64,7 +64,7 @@ const verifyCodeController = async(req, res) =>{
         const isCodeValid = await verifyStagedUserCodeService(code, email);
 
         if(!isCodeValid){
-            return res.status(404).json({message: "Codigo invalido ao expirado"});
+            return res.status(404).json({message: "Codigo invalido ou expirado"});
         }
 
         const newUser = await createUserService({
