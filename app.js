@@ -3,6 +3,7 @@ const cookieParser  = require('cookie-parser');
 const cors = require('cors');
 
 const dotenv = require('dotenv');
+
 dotenv.config(); // Carrega as variáveis do .env
 
 const signUpRoutes = require('./src/routes/signUpRoutes');
