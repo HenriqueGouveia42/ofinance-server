@@ -179,19 +179,24 @@ const readUnpaidTransactions = async(req, res) =>{
 const updateTransaction = async(req, res) =>{
     try{
         const {transactionId, updates} = req.body;
+        
         const userId = req.user.id;
 
-        if(!transactionId || !updates){
-            return res.status(400).json({message: "Campos obrigatorios faltando!"});
+        if(typeof transactionId != 'number' || typeof updates != 'object'){
+            return res.status(400).json({message: "Campos obrigatorios faltando ou de tipos incorretos"});
         }
         
         const update = await updateTransactionService(userId, transactionId, updates);
+
+        if(!update){
+            return res.status(204).json({message: "Erro ao atualizar transação"});
+        }
 
         return res.status(200).json({message: "Transacao alterada com sucesso!"})
         
     }catch(error){
         console.error('Erro ao editar a transacao');
-        throw new Error('Erro ao editar transacao');
+        return res.status(500).json({message: "Erro interno ao editar transação"})
     }
 }
 
