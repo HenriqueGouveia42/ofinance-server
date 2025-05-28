@@ -131,82 +131,157 @@ const readUnpaidTransactionsService = async(userId) =>{
     }
 }
 
-const updateTransactionService = async (userId, transactionId, updates) =>{
-    try{
-        
+const updateTransactionService = async (userId, transactionId, updates) => {
+    try {
         const allowedFields = [
             'amount', 'type', 'paid_out', 'payDay', 'description', 'attachment',
-            'fixed', 'repeat', 'typeRepeat', 'remindMe'
+            'fixed', 'repeat', 'typeRepeat', 'remindMe', 'categoryId'
         ];
 
-        const invalidFields = Object.keys(updates).filter(key=>!allowedFields.includes(key));
-
-
-        if (invalidFields.length > 0){
-            throw new Error(`Campos invalidos: ${invalidFields.join(', ')}`);
+        // Verifica se há campos inválidos no objeto updates
+        const invalidFields = Object.keys(updates).filter(key => !allowedFields.includes(key));
+        if (invalidFields.length > 0) {
+            throw new Error(`Campos inválidos: ${invalidFields.join(', ')}`);
         }
 
+        // Busca a transação original
         const transaction = await prisma.transactions.findFirst({
-            where:{
-                id: transactionId,
-                userId: userId
-            }
+            where: { id: transactionId, userId }
         });
 
-        if(!transaction){
-            throw new Error(`Transacao com id: ${transactionId} pertencente ao usuario com id: ${userId} nao encontrada`);
+        if (!transaction) {
+            throw new Error("Transação não encontrada ou não pertence ao usuário.");
         }
 
-        const updateAll = await prisma.$transaction(async () =>{
-
-            const updatedTransaction = await prisma.transactions.update({
-                where:{id: transaction.id},
-                data: updates
-            })
-
-            if (Object.keys(updates).includes('paid_out') && (updates.paid_out !== transaction.paid_out)) {
-                
-                let balanceUpdateType = '';
-
-                if(transaction.type == 'revenue'){
-                    balanceUpdateType = updates.paid_out ? 'increment' : 'decrement'
+        // Inicia uma transação do Prisma para garantir atomicidade
+        await prisma.$transaction(async (tx) => {
+            // Atualiza o valor da transação e ajusta o saldo, se necessário
+            if ('amount' in updates && updates.amount !== transaction.amount) {
+                if (typeof updates.amount !== 'number') {
+                    throw new Error("amount deve ser um número.");
                 }
 
-                if(transaction.type == 'expense'){
-                    balanceUpdateType = updates.paid_out ? 'decrement' : 'increment'
+                const absoluteDiff = Math.abs(updates.amount - transaction.amount);
+
+                // Só ajusta o balanço se estiver marcada como "paga"
+                if (transaction.paid_out) {
+                    let balanceOperation;
+
+                    if (transaction.type === 'expense') {
+                        // Despesas pagas: aumento do valor => diminuir saldo
+                        balanceOperation = updates.amount > transaction.amount
+                            ? { decrement: absoluteDiff }
+                            : { increment: absoluteDiff };
+                    } else {
+                        // Receitas pagas: aumento do valor => aumentar saldo
+                        balanceOperation = updates.amount > transaction.amount
+                            ? { increment: absoluteDiff }
+                            : { decrement: absoluteDiff };
+                    }
+
+                    await tx.accounts.update({
+                        where: { id: transaction.accountId, userId },
+                        data: { balance: balanceOperation }
+                    });
                 }
-    
-                //Altera o saldo da conta
-                const updateAccountBalance = await prisma.accounts.update({
+
+                // Atualiza o valor da transação
+                await tx.transactions.update({
+                    where: { id: transaction.id, userId },
+                    data: { amount: updates.amount }
+                });
+            }
+
+            // Atualiza o tipo e categoria, se houver
+            if (
+                'type' in updates &&
+                updates.type !== transaction.type
+            ) {
+                if (!updates.categoryId) {
+                    throw new Error("categoryId obrigatório para alteração de tipo.");
+                }
+
+                // Valida se a nova categoria é compatível com o tipo
+                const isValidCategory = await tx.expenseAndRevenueCategories.findFirst({
                     where: {
-                        id: transaction.accountId
-                    },
-                    data: {
-                        balance: {
-                            [balanceUpdateType]: transaction.amount
+                        id: updates.categoryId,
+                        type: updates.type
+                    }
+                });
+
+                if (!isValidCategory) {
+                    throw new Error("Categoria inválida para o tipo informado.");
+                }
+
+                // Ajuste no saldo se já foi paga
+                if (transaction.paid_out) {
+                    const amount = updates.amount ?? transaction.amount;
+
+                    // Reverte o valor anterior
+                    const reverse = transaction.type === 'expense'
+                        ? { increment: amount }
+                        : { decrement: amount };
+
+                    // Aplica o novo tipo
+                    const apply = updates.type === 'expense'
+                        ? { decrement: amount }
+                        : { increment: amount };
+
+                    // Reverte e aplica o novo tipo ################################################
+                    const previousAmount = transaction.amount;
+                    const newAmount = updates.amount ?? transaction.amount;
+
+                    let balanceDelta = 0;
+
+                    // Reverte valor anterior
+                    balanceDelta += transaction.type === 'expense' ? previousAmount : -previousAmount;
+
+                    // Aplica novo valor com novo tipo
+                    balanceDelta += updates.type === 'expense' ? -newAmount : newAmount;
+
+                    await tx.accounts.update({
+                        where: { id: transaction.accountId, userId },
+                        data: {
+                            balance: {
+                                increment: balanceDelta
+                            }
                         }
+                    });
+                }
+
+                // Atualiza o tipo e a categoria
+                await tx.transactions.update({
+                    where: { id: transaction.id, userId },
+                    data: {
+                        type: updates.type,
+                        categoryId: updates.categoryId
                     }
                 });
             }
-    
-            if(Object.keys(updates).includes('amount')){
 
-                const updateAccountBalance = prisma.accounts.update({
-                    where:{id: transaction.accountId},
-                    data:{
-                        balance: updates.amount
-                    }
-                })
+            // Atualiza os demais campos permitidos, se existirem
+            const otherFields = { ...updates };
+            delete otherFields.amount;
+            delete otherFields.type;
+            delete otherFields.categoryId;
+
+            if (Object.keys(otherFields).length > 0) {
+                await tx.transactions.update({
+                    where: { id: transaction.id, userId },
+                    data: otherFields
+                });
             }
+        });
 
-            return updatedTransaction;
-        })
+        return true;
+
+    } catch (error) {
+        console.error("Erro ao atualizar transação:", error.message);
+        throw new Error("Erro no serviço de atualização de transação");
     }
-    catch(error){
-        console.error('Erro no servico de atualizar algum campo da transacao');
-        throw new Error('Erro no servico de atualizar algum campo da transacao');
-    }
-}
+};
+
+
 
 const deleteTransactionService = async (transactionId) =>{
     try{
