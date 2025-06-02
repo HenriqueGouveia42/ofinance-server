@@ -145,134 +145,333 @@ const updateTransactionService = async (userId, transactionId, updates) => {
         }
 
         // Busca a transação original
-        const transaction = await prisma.transactions.findFirst({
-            where: { id: transactionId, userId }
+        let transaction = await prisma.transactions.findFirst({
+            where: { id: transactionId, userId: userId }
         });
 
+        
         if (!transaction) {
             throw new Error("Transação não encontrada ou não pertence ao usuário.");
         }
 
-        // Inicia uma transação do Prisma para garantir atomicidade
-        await prisma.$transaction(async (tx) => {
-            // Atualiza o valor da transação e ajusta o saldo, se necessário
-            if ('amount' in updates && updates.amount !== transaction.amount) {
-                if (typeof updates.amount !== 'number') {
-                    throw new Error("amount deve ser um número.");
+        // Verifica, chave por chave, se os tipos estão corretos e se houve mudança
+        /*
+            1 - Alteração no montante da transação
+            2 - Alteração no tipo da transação
+            3 - Alteração no status 'paid_out' da transação
+            4 - Alteração na data  em que foi criado o pagamento
+            5 - Alteração na descrição
+            6 - Alteração no atributo 'fixed'
+        
+        */
+        await prisma.$transaction(async (tx) =>{
+        
+            // 1 - Alteração do montante da transação
+            if(typeof updates.amount === 'number' && updates.amount != transaction.amount){
+
+                let absoluteDiff;
+
+                absoluteDiff = Math.abs(updates.amount - transaction.amount);
+
+                let balanceOperation1;
+
+                //revenue
+                if(transaction.type == "revenue"){
+                    //novo valor é maior - increment account balance
+                    //novo valor é menor - decrement account balance
+                    balanceOperation1 = updates.amount > transaction.amount
+                    ?   {increment: absoluteDiff}
+                    :   {decrement: absoluteDiff}                 
                 }
 
-                const absoluteDiff = Math.abs(updates.amount - transaction.amount);
-
-                // Só ajusta o balanço se estiver marcada como "paga"
-                if (transaction.paid_out) {
-                    let balanceOperation;
-
-                    if (transaction.type === 'expense') {
-                        // Despesas pagas: aumento do valor => diminuir saldo
-                        balanceOperation = updates.amount > transaction.amount
-                            ? { decrement: absoluteDiff }
-                            : { increment: absoluteDiff };
-                    } else {
-                        // Receitas pagas: aumento do valor => aumentar saldo
-                        balanceOperation = updates.amount > transaction.amount
-                            ? { increment: absoluteDiff }
-                            : { decrement: absoluteDiff };
-                    }
-
-                    await tx.accounts.update({
-                        where: { id: transaction.accountId, userId },
-                        data: { balance: balanceOperation }
-                    });
+                //expense
+                if(transaction.type == "expense"){
+                    //novo valor é maior - decrement account balance
+                    //novo valor é menor - increment account balance
+                    balanceOperation1 = updates.amount > transaction.amount
+                    ?   {decrement: absoluteDiff}
+                    :   {increment: absoluteDiff}
                 }
 
-                // Atualiza o valor da transação
-                await tx.transactions.update({
-                    where: { id: transaction.id, userId },
-                    data: { amount: updates.amount }
-                });
-            }
-
-            // Atualiza o tipo e categoria, se houver
-            if (
-                'type' in updates &&
-                updates.type !== transaction.type
-            ) {
-                if (!updates.categoryId) {
-                    throw new Error("categoryId obrigatório para alteração de tipo.");
-                }
-
-                // Valida se a nova categoria é compatível com o tipo
-                const isValidCategory = await tx.expenseAndRevenueCategories.findFirst({
-                    where: {
-                        id: updates.categoryId,
-                        type: updates.type
-                    }
-                });
-
-                if (!isValidCategory) {
-                    throw new Error("Categoria inválida para o tipo informado.");
-                }
-
-                // Ajuste no saldo se já foi paga
-                if (transaction.paid_out) {
-                    const amount = updates.amount ?? transaction.amount;
-
-                    // Reverte o valor anterior
-                    const reverse = transaction.type === 'expense'
-                        ? { increment: amount }
-                        : { decrement: amount };
-
-                    // Aplica o novo tipo
-                    const apply = updates.type === 'expense'
-                        ? { decrement: amount }
-                        : { increment: amount };
-
-                    // Reverte e aplica o novo tipo ################################################
-                    const previousAmount = transaction.amount;
-                    const newAmount = updates.amount ?? transaction.amount;
-
-                    let balanceDelta = 0;
-
-                    // Reverte valor anterior
-                    balanceDelta += transaction.type === 'expense' ? previousAmount : -previousAmount;
-
-                    // Aplica novo valor com novo tipo
-                    balanceDelta += updates.type === 'expense' ? -newAmount : newAmount;
-
-                    await tx.accounts.update({
-                        where: { id: transaction.accountId, userId },
-                        data: {
-                            balance: {
-                                increment: balanceDelta
-                            }
+                await tx.accounts.update({
+                    where:{
+                        id: transaction.accountId,
+                        userId: userId
+                    },
+                    data:{
+                        balance:{
+                            balanceOperation1
                         }
-                    });
+                    }
+                })
+
+                await tx.transactions.update({
+                    where:{
+                        id: transaction.id,
+                        userId: userId
+                    },
+                    data:{
+                        amount: updates.amount
+                    }
+                })
+
+                //Atualiza a cópia local da transação a fim de evitar mais buscas no banco de dados
+                transaction.amount = updates.amount
+
+            }else{
+                if(typeof updates.amount != 'number'){
+                    throw new Error("'amount' deve ser um numero!")
+                }
+            }
+
+            // 2 - Alteração no tipo da transação
+            if((updates.type =! null) && (updates.type != transaction.type)){
+
+                //Mudança do tipo implica em mudança no 'categoryId'. É preciso verificar se a nova categoria ('expense' ou 'revenue') corresponde a nova categoria
+                
+                let balanceOperation2;
+                let newCategoryType;
+
+                //expense => revenue
+                if(updates.type == "revenue"){
+                    newCategoryType = "revenue";
+                    balanceOperation2 = {increment: 2*transaction.amount}
                 }
 
-                // Atualiza o tipo e a categoria
-                await tx.transactions.update({
-                    where: { id: transaction.id, userId },
-                    data: {
-                        type: updates.type,
-                        categoryId: updates.categoryId
+                //revenue => expense
+                if(updates.type == "expense"){
+                    newCategoryType = "revenue";
+                    balanceOperation2 = {decrement: 2*transaction.amount}
+                }
+
+                if(typeof updates.categoryId === 'number'){
+
+                    //Verifica se a nova categoria é compativel
+                    const isNewCategoryValid = await tx.expenseAndRevenueCategories.findFirst({
+                        where:{
+                            id: updates.categoryId,
+                            userId: userId,
+                            type: newCategoryType
+                        }
+                    })
+
+                    if(!isNewCategoryValid){
+                        throw new Error('Nova categoria incompatível')
                     }
-                });
-            }
+                        
+                }else{
+                    throw new Error('Para alterar o tipo de transação, é obrigatório alterar sua categoria ("revenue" ou "expense")')
+                }
 
-            // Atualiza os demais campos permitidos, se existirem
-            const otherFields = { ...updates };
-            delete otherFields.amount;
-            delete otherFields.type;
-            delete otherFields.categoryId;
+                await tx.accounts.balance.update({
+                    where:{
+                        id:transaction.accountId,
+                        userId: userId
+                    },
+                    data:{
+                        balance: balanceOperation2
+                    }
+                })
 
-            if (Object.keys(otherFields).length > 0) {
                 await tx.transactions.update({
-                    where: { id: transaction.id, userId },
-                    data: otherFields
-                });
-            }
-        });
+                    where:{
+                        id: transactionId,
+                        userId: userId
+                    },
+                    data:{
+                        type: newCategoryType
+                    }
+                })
 
+                //Atualiza a cópia local da transação a fim de evitar mais buscas no banco de dados
+                transaction.type = newCategoryType
+                
+            }else{
+                if((updates.type != "revenue") && (updates.type != "expense")){
+                    throw new Error("'type' só pode ser 'revenue' ou 'expense', ou é a mesma categoria")
+                }
+            }
+
+            // 3 - Alteração no status 'paid_out' da transação
+            if(typeof updates.paid_out === 'boolean' && updates.paid_out != transaction.paid_out){
+
+                let balanceOperation3;
+                
+                if(updates.paid_out == true && transaction.type == "revenue"){
+
+                    balanceOperation3 = {increment: transaction.amount}
+
+                }
+
+                if(updates.paid_out == true && transaction.type == "expense"){
+
+                    balanceOperation3 = {decrement: transaction.amount}
+
+                }
+
+                if(updates.paid_out == false && transaction.type == "revenue"){
+
+                    balanceOperation3 = {decrement: transaction.amount}
+
+                }
+
+
+                if(updates.paid_out == false && transaction.type == "expense"){
+
+                    balanceOperation3 = {increment: transaction.amount}
+
+                }
+
+                await tx.accounts.update({
+                    where:{
+                        id: transaction.accountId,
+                        userId: userId
+                    },
+                    data:{
+                        balanceOperation3
+                    }
+                })
+
+                await tx.transactions.update({
+                    where:{
+                        id: transactionId,
+                        userId: userId
+                    },
+                    data:{
+                        paid_out: updates.paid_out
+                    }
+                })
+
+                //Atualiza a cópia local da transação a fim de evitar mais buscas no banco de dados
+                transaction.paid_out = updates.paid_out
+
+            }
+
+            // 4 - Alteração na data  em que foi criado o pagamento
+            if(typeof updates.payDay === 'object' && updates.payDay != transaction.payDay){
+                
+                await tx.transactions.update({
+                    where:{
+                        id: transactionId,
+                        userId: userId
+                    },
+                    data:{
+                        payDay: updates.payDay
+                    }
+                })
+
+                //Atualiza a cópia local da transação a fim de evitar mais buscas no banco de dados
+                transaction.payDay = updates.payDay
+
+            }
+            
+            // 5 - Alteração na descrição
+            if(typeof updates.description === 'string' && updates.description != transaction.description){
+                
+                await tx.transactions.update({
+                    where:{
+                        id: transactionId,
+                        userId: userId
+                    },
+                    data:{
+                        description: updates.description
+                    }
+                })
+
+                //Atualiza a cópia local da transação a fim de evitar mais buscas no banco de dados
+                transaction.description = updates.description
+
+            }
+
+            // 6 - Alteração no atributo 'fixed'
+            if(typeof updates.fixed === 'boolean' && updates.fixed != transaction.fixed){
+
+                if(updates.fixed){
+                
+                    await tx.fixedTransactions.create({
+                        data:{
+                            id: transactionId
+                        }
+                    })
+
+                    await tx.transactions.update({
+                        where:{
+                            id: transactionId,
+                            userId: userId
+                        },
+                        data:{
+                            fixed: true
+                        }
+                    })
+
+                }
+
+                if(!updates.fixed){
+
+                    await tx.fixedTransactions.delete({
+                        where:{
+                            id: transactionId
+                        }
+                    })
+
+                    await tx.transactions.update({
+                        where:{
+                            id: transactionId,
+                            userId: userId
+                        },
+                        data:{
+                            fixed: false
+                        }
+                    })
+                }
+                //Atualiza a cópia local da transação a fim de evitar mais buscas no banco de dados
+                transaction.fixed = updates.fixed
+            }
+
+            // 7 - Alteração no atributo repeate
+            if(typeof updates.repeat === 'boolean' && updates.repeat != transaction.repeat){
+
+                let trueOrFalse;
+
+                if(updates.repeat){
+                   trueOrFalse = true
+                }else{
+                    trueOrFalse = false
+                }
+
+                await tx.transactions.update({
+                    where:{
+                        id: transactionId,
+                        userId: userId
+                    },
+                    data:{
+                            repeat: trueOrFalse
+                    }
+                })
+
+                //Atualiza a cópia local da transação a fim de evitar mais buscas no banco de dados
+                transaction.repeat = updates.repeat
+            }
+
+            if(typeof updates.typeRepeat === 'string' && updates.typeRepeat != transaction.typeRepeat){
+                if(updates.typeRepeat){
+                    
+                }
+            }
+
+            if(typeof updates.remindMe === 'string' && updates.remindMe != transaction.remindMe){
+
+            }
+
+        })
+
+
+
+
+
+
+
+    
         return true;
 
     } catch (error) {
