@@ -108,6 +108,15 @@ const createTransaction = async (req, res) =>{
                 return res.status(404).json({message: "Erro ao criar transacao"})
             }
 
+            if(transaction.fixed){
+                await prisma.fixedTransactions.create({
+                    data:{
+                        id: transaction.id,
+                    }
+                })
+            }
+            
+
             return res.status(201).json({message: "Transacao criada com sucesso"})
 
         })
