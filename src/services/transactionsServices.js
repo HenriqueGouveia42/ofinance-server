@@ -3,22 +3,21 @@ const {prisma} = require('../config/prismaClient');
 //Futuramente será implementado o cache
 const {getOrSetCache} = require('../services/cacheService');
 
-const newTransaction = async(
+const createTransactionService = async(
+    //atributos obrigatorios
     amount,
     type,
     paid_out,
     payDay,
     description,
     attachment,
-    fixed,
-    repeat,
-    typeRepeat,
     remindMe,
     createdAt,
     updatedAt,
     userId,
     categoryId,
     accountId,
+    repeatTransaction
 ) => {
     try{
         const transaction = await prisma.transactions.create({
@@ -29,9 +28,6 @@ const newTransaction = async(
                 payDay,
                 description,
                 attachment,
-                fixed,
-                repeat,
-                typeRepeat,
                 remindMe,
                 createdAt,
                 updatedAt,
@@ -40,6 +36,32 @@ const newTransaction = async(
                 accountId,
             }
         })
+
+        if (repeatTransaction){
+
+            const {
+                repeatEvery,
+                repeatEachOptions,
+                repeatEachWeekdays,
+                repeatOnDayOfMonth,
+                ends,
+                endsAt,
+                endsAfterOccurrencies
+            } = repeatTransaction.recurrenceDetails
+
+            await prisma.repeatTransaction.create({
+                data:{
+                    transactionId: transaction.id,
+                    repeatEvery: repeatEvery,
+                    repeatEachOptions: repeatEachOptions,
+                    repeatEachWeekdays: repeatEachWeekdays,
+                    repeatOnDayOfMonth: repeatOnDayOfMonth,
+                    ends: ends,
+                    endsAt: endsAt,
+                    endsAfterOccurrencies: endsAfterOccurrencies
+                }
+            })
+        }
         return transaction;
     }catch(error){
         console.error("Erro no serviço de criar nova transacao", error);
@@ -48,25 +70,21 @@ const newTransaction = async(
 }
 
 const checkIfTransactionTypeMatchesToCategoryType = async (userId, TransactionType, CategoryId) => {
-    try{
-        
-        const getCategory = await prisma.expenseAndRevenueCategories.findUnique({
-            where:{
-                userId: userId,
-                type: TransactionType,
-                id: CategoryId,
-            }
-        });
-        
-        if (!getCategory){
-            throw new Error("Categoria não encontrada ou incompatível com o tipo da transação.");
+    
+    const getCategory = await prisma.expenseAndRevenueCategories.findUnique({
+        where:{
+            userId: userId,
+            type: TransactionType,
+            id: CategoryId,
         }
+    });
         
-        return getCategory;
-    }catch(error){
-        console.error("Erro ao verificar se o tipo de transacao escolhido confere com o tipo de categoria", error);
-        throw new Error("Erro ao validar categoria da transação ou tipo da transação não bate com o tipo da categoria");
+    if (!getCategory){
+        throw new Error("Categoria não encontrada ou incompatível com o tipo da transação.");
     }
+
+    return getCategory;
+
 }
 
 const readMonthPaidTransactionsService = async (userId, startDate, endDate) =>{
@@ -132,7 +150,9 @@ const readUnpaidTransactionsService = async(userId) =>{
 }
 
 const updateTransactionService = async (userId, transactionId, updates) => {
+
     try {
+    
         const allowedFields = [
             'amount', 'type', 'paid_out', 'payDay', 'description', 'attachment',
             'fixed', 'repeat', 'typeRepeat', 'remindMe', 'categoryId'
@@ -140,6 +160,7 @@ const updateTransactionService = async (userId, transactionId, updates) => {
 
         // Verifica se há campos inválidos no objeto updates
         const invalidFields = Object.keys(updates).filter(key => !allowedFields.includes(key));
+
         if (invalidFields.length > 0) {
             throw new Error(`Campos inválidos: ${invalidFields.join(', ')}`);
         }
@@ -193,17 +214,20 @@ const updateTransactionService = async (userId, transactionId, updates) => {
                     :   {increment: absoluteDiff}
                 }
 
-                await tx.accounts.update({
-                    where:{
-                        id: transaction.accountId,
-                        userId: userId
-                    },
-                    data:{
-                        balance:{
-                            balanceOperation1
+                if (transaction.paid_out){
+
+                    await tx.accounts.update({
+                        where:{
+                            id: transaction.accountId,
+                            userId: userId
+                        },
+                        data:{
+                            balance:{
+                                balanceOperation1
+                            }
                         }
-                    }
-                })
+                    })
+                }
 
                 await tx.transactions.update({
                     where:{
@@ -263,15 +287,17 @@ const updateTransactionService = async (userId, transactionId, updates) => {
                     throw new Error('Para alterar o tipo de transação, é obrigatório alterar sua categoria ("revenue" ou "expense")')
                 }
 
-                await tx.accounts.balance.update({
-                    where:{
-                        id:transaction.accountId,
-                        userId: userId
-                    },
-                    data:{
-                        balance: balanceOperation2
-                    }
-                })
+                if (transaction.paid_out){
+                    await tx.accounts.update({
+                        where:{
+                            id:transaction.accountId,
+                            userId: userId
+                        },
+                        data:{
+                            balance: balanceOperation2
+                        }
+                    })
+                }
 
                 await tx.transactions.update({
                     where:{
@@ -465,13 +491,6 @@ const updateTransactionService = async (userId, transactionId, updates) => {
 
         })
 
-
-
-
-
-
-
-    
         return true;
 
     } catch (error) {
@@ -524,12 +543,17 @@ const deleteTransactionService = async (transactionId) =>{
     }
 }
 
+const validateReqBody = (reqBdoy) =>{
+
+}
+
 module.exports ={
     checkIfTransactionTypeMatchesToCategoryType,
-    newTransaction,
+    createTransactionService,
     readMonthPaidTransactionsService,
     readUnpaidTransactionsService,
     updateTransactionService,
-    deleteTransactionService
+    deleteTransactionService,
+    validateReqBody
 }
 

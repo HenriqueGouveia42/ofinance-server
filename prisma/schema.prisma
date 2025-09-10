@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,7 +7,47 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model stagedUsers {
+//
+// Enums
+//
+enum TransactionType {
+  revenue
+  expense
+}
+
+enum CategoryType {
+  revenue
+  expense
+}
+
+enum repeatEachOptions {
+  day
+  week
+  month
+  year
+}
+
+enum endsOptions {
+  never
+  at
+  after
+}
+
+enum daysOfWeek {
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday
+  sunday
+}
+
+//
+// Models
+//
+
+model StagedUsers {
   id               Int      @id @default(autoincrement())
   name             String
   email            String   @unique
@@ -23,57 +57,18 @@ model stagedUsers {
   verificationCode String
 
   @@index([expiresAt])
-
 }
 
 model Users {
-  id                Int      @id @default(autoincrement())
-  name              String
-  email             String   @unique
-  password          String
-  createdAt         DateTime @default(now())
-
-  transactions    Transactions[] // Relacionamento 1 para N com a tabela Transactions
-  accounts        Accounts[] //Relacionamento 1 para N com a tabela Accounts
-  categories      ExpenseAndRevenueCategories[] //Relacionamento 1 para N com a tabela ExpenseAndRevenueCategories
-
-}
-
-enum TransactionType{
-  revenue
-  expense
-}
-
-
-model Transactions {
   id          Int      @id @default(autoincrement())
-  amount      Float
-  type        TransactionType
-  paid_out    Boolean
-  payDay      DateTime
-  description String?
-  attachment  String?
-  fixed       Boolean
-  repeat      Boolean
-  remindMe    String?
+  name        String
+  email       String   @unique
+  password    String
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
-  userId    Int //Chave estrangeira para o usuario
-  categoryId Int //Chave estrangeira para a categoria
-  accountId  Int //Chave estrangeira para a conta
-
-  user     Users                       @relation(fields: [userId], references: [id]) //Relacionamento com a tabela Users[]
-  category ExpenseAndRevenueCategories @relation(fields: [categoryId], references: [id]) //Relacionamento com a tabela ExpenseAndRevenueCategories[]
-  account  Accounts                    @relation(fields: [accountId], references: [id]) //Relacionamento com a tabela Accounts[]
-  fixedTransactions FixedTransactions? @relation
-  @@index([payDay, userId])
-}
-
-model FixedTransactions{
-  id  Int @id @map("transaction_id") //chave primária + FK para Transactions.id
-
-  transaction Transactions @relation(fields: [id], references: [id], onDelete: Cascade)
+  transactions Transactions[]
+  accounts     Accounts[]
+  categories   ExpenseAndRevenueCategories[]
 }
 
 model Accounts {
@@ -85,14 +80,9 @@ model Accounts {
   updatedAt DateTime @updatedAt
 
   user         Users          @relation(fields: [userId], references: [id])
-  Transactions Transactions[]
+  transactions Transactions[]
 
   @@index([userId])
-}
-
-enum CategoryType {
-  revenue
-  expense
 }
 
 model ExpenseAndRevenueCategories {
@@ -106,5 +96,52 @@ model ExpenseAndRevenueCategories {
   user         Users          @relation(fields: [userId], references: [id])
   transactions Transactions[]
 
-  @@index([type, userId]) //Indice na colune 'type', a fim de melhorar a performance de consultas que filtram pelo campo 'type'
+  @@index([type, userId])
+  @@unique([userId, type, name])
+}
+
+model Transactions {
+  id          Int      @id @default(autoincrement())
+  amount      Float
+  type        TransactionType
+  paid_out    Boolean
+  payDay      DateTime
+  description String?
+  attachment  String?
+  remindMe    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId     Int
+  categoryId Int
+  accountId  Int
+  
+  user     Users                        @relation(fields: [userId], references: [id])
+  category ExpenseAndRevenueCategories  @relation(fields: [categoryId], references: [id])
+  account  Accounts                     @relation(fields: [accountId], references: [id])
+  repeatTransaction RepeatTransaction?
+
+  @@index([payDay, userId])
+}
+
+model RepeatTransaction {
+  id           Int @id @default(autoincrement())
+  transaction  Transactions @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  
+  transactionId Int @unique
+  repeatEvery Int
+  repeatEachOptions repeatEachOptions
+  repeatEachWeekdays WeekDay[] @relation("TransactionRepeatEachWeekDays")
+  repeatOnDayOfMonth Int?
+  ends endsOptions //never, at, after 
+  endsAt DateTime?
+  endsAfterOccurrencies Int?
+
+  @@index([repeatEachOptions])
+}
+
+model WeekDay {
+  id  Int @id @default(autoincrement())
+  name daysOfWeek @unique //'monday', 'tuesday', etc
+  transactions RepeatTransaction[] @relation("TransactionRepeatEachWeekDays")
 }

@@ -86,6 +86,7 @@ const checkIfrecurringTransactionsExists = async(accountId) =>{
 
 const updateAccountBalanceService = async(accountId, type, amount, paid_out) => {
     try{
+
         if(paid_out){
             const updateData =
             type === "expense"
@@ -96,6 +97,7 @@ const updateAccountBalanceService = async(accountId, type, amount, paid_out) => 
                 where:{id: accountId},
                 data: updateData,
             });
+            
             return newBalance;
         }else{
             return true
