@@ -39,3 +39,10 @@ const PORT = process.env.PORT;
 app.listen(PORT, () => {
     console.log('Servidor rodando na porta: ' + PORT);
 });
+
+if(process.env.NODE_ENV == "development"){
+    const swaggerDocs = require("./src/config/swagger.js")
+    swaggerDocs(app, PORT)
+}
+
+
