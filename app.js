@@ -30,9 +30,9 @@ app.use(cors({
 app.use('/auth/signup', signUpRoutes);
 app.use('/auth/login', loginRoutes);
 app.use('/auth/logout', logoutRoutes);
+app.use('/accounts', authMiddleware, accountsRoutes)
 app.use('/user', authMiddleware, userRoutes);
 app.use('/transaction', authMiddleware, transactionRoutes);
-app.use('/accounts', authMiddleware, accountsRoutes);
 app.use('/category', authMiddleware, categoriesRoutes);
 
 const PORT = process.env.PORT;
