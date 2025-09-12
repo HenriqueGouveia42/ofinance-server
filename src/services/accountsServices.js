@@ -1,41 +1,62 @@
 const {prisma} = require('../config/prismaClient');
+const AppError = require('../utils/AppError');
 
+const createAccountService = async(userId, accountName) =>{
+    
+        //validacao de entrada
+        if (typeof accountName !== "string" || !/^[a-zA-Z][a-zA-Z0-9_ ]*$/.test(accountName)) {
+            throw new AppError("Nome inválido. Deve ser uma string e começar com uma letra", 400);
+        }
 
-//check cache first
-const getAccountsByUserId = async(userId) =>{
-    try{
-        const accounts = await prisma.accounts.findMany({
-            where:{
-                userId: userId,
-            },
-        });
-        return accounts;
-    }catch(error){
-        console.error("Erro ao buscar contas do usuario", error);
-        throw new Error('Erro ao buscar contas do usuario"');
-    }
-}
+        const toTitleCase = (str) => {
+            return str
+              .toLowerCase()
+              .split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+        };
 
-//check cache first
-const checkIfAccountAlreadyExists = async(accountName, userId) =>{
-    try{
+        const titleCaseAccountName = toTitleCase(accountName)
+
+        //checa se este usuario já possui uma conta com este mesmo nome
         const account = await prisma.accounts.findFirst({
-            where:{
-                name: accountName,
-                userId: userId
-            }
+            where:{ name: titleCaseAccountName, userId }
         });
         
         if(account){
-            return true
-        }else{
-            return false
+            throw new AppError('Este usuario já tem uma conta com esse nome!', 409, 'INVALID_ACCOUNT_NAME')
         }
-    }catch(error){
-        console.error("Erro ao checar se a conta já existe", error);
-        return null;
-    }
+
+        //cria a conta
+        const newAcc = await prisma.accounts.create({
+            data:{
+                userId: userId,
+                name: accountName,
+                balance: 0
+            }
+        })
+
+        return newAcc;
+
 }
+
+//check cache first
+const getAccountsByUserIdService = async(userId) =>{
+    
+    const accounts = await prisma.accounts.findMany({
+        where:{
+            userId: userId,
+        },
+    });
+
+    if (!accounts){
+        throw new AppError('Erro ao buscar as contas deste usuario', 404, 'ACCOUNTS_ERROR')
+    }
+
+    return accounts;
+    
+}
+
 
 //check cache first
 const checkIfAccountExists = async(accountId, userId) =>{
@@ -109,17 +130,13 @@ const updateAccountBalanceService = async(accountId, type, amount, paid_out) => 
 }
 
 const deleteAccountService = async (userId, accountId) => {
-    /*
-        1) Verifica se existem transações recorrentes vinculadas a esta conta
-        2) Buscar todas as transações vinculadas
-        3) Somar receitas e despesas
-        4) Atualizar balanço
-        5) Deletar transações da conta
-        6) Deletar a conta em si
-    */
     try {
         await prisma.$transaction(async (tx) => {
-            // 1) 
+
+            if(typeof accountId ==! "number"){
+                return res.status(400).json({message: "Id da conta a ser deletada invalido"})
+            }
+            
             const recurringTransactions = await tx.transactions.findFirst({
                 where: {
                     userId: userId,
@@ -132,7 +149,7 @@ const deleteAccountService = async (userId, accountId) => {
                 throw new Error('Existem transações fixas vinculadas a esta conta. Remova-as antes de deletar a conta.');
             }
 
-            // 2) 
+            
             const allTransactions = await tx.transactions.findMany({
                 select: {
                     type: true,
@@ -148,7 +165,6 @@ const deleteAccountService = async (userId, accountId) => {
                 throw new Error('Erro ao buscar as transacoes vinculadas a conta')
             }
 
-            // 3)
             let revenue = 0;
             let expense = 0;
 
@@ -159,7 +175,6 @@ const deleteAccountService = async (userId, accountId) => {
 
             const balanceResult = revenue - expense;
 
-            // 4) 
             const updateAccountBalance = await tx.accounts.update({
                 where: {
                     id: accountId,
@@ -209,8 +224,8 @@ const deleteAccountService = async (userId, accountId) => {
 
 
 module.exports = {
-    getAccountsByUserId,
-    checkIfAccountAlreadyExists,
+    createAccountService,
+    getAccountsByUserIdService,
     checkIfAccountExists,
     deleteAccountById,
     checkIfrecurringTransactionsExists,
