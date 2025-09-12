@@ -41,18 +41,20 @@ const createAccountService = async(userId, accountName) =>{
 }
 
 //check cache first
-const getAccountsByUserId = async(userId) =>{
-    try{
-        const accounts = await prisma.accounts.findMany({
-            where:{
-                userId: userId,
-            },
-        });
-        return accounts;
-    }catch(error){
-        console.error("Erro ao buscar contas do usuario", error);
-        throw new Error('Erro ao buscar contas do usuario"');
+const getAccountsByUserIdService = async(userId) =>{
+    
+    const accounts = await prisma.accounts.findMany({
+        where:{
+            userId: userId,
+        },
+    });
+
+    if (!accounts){
+        throw new AppError('Erro ao buscar as contas deste usuario', 404, 'ACCOUNTS_ERROR')
     }
+
+    return accounts;
+    
 }
 
 
@@ -223,7 +225,7 @@ const deleteAccountService = async (userId, accountId) => {
 
 module.exports = {
     createAccountService,
-    getAccountsByUserId,
+    getAccountsByUserIdService,
     checkIfAccountExists,
     deleteAccountById,
     checkIfrecurringTransactionsExists,

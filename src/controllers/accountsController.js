@@ -1,6 +1,6 @@
 const {prisma} = require('../config/prismaClient');
 
-const{ createAccountService, getAccountsByUserId, deleteAccountService} 
+const{ createAccountService, getAccountsByUserIdService, deleteAccountService} 
 = require('../services/accountsServices');
 const AppError = require('../utils/AppError');
 
@@ -27,13 +27,22 @@ const createAccountController = async(req, res) =>{
     }
 }
 
-const getAccounts = async(req, res) =>{
+const getAccountsController = async(req, res) =>{
     try{
-        accounts = await getAccountsByUserId(req.user.id);
+        userId = req.user.id
+
+        accounts = await getAccountsByUserIdService(userId);
+
         res.status(200).json(accounts);
     }catch(error){
-        console.error("Erro ao recuperar as contas do usuario");
-        res.status(404).json({message: "Erro ao recuperar contas cadastradas do usuarios"})
+
+        console.error("Erro ao recuperar as contas do usuario: ", error);
+
+        if (error instanceof AppError){
+            return res.status(error.statusCode).json({message: error.message})
+        }
+
+        return res.status(500).json({message: "Erro interno ao tentar buscar as contas deste usuario"})
     }
 }
 
@@ -99,4 +108,4 @@ const renameAccount = async(req, res) =>{
 }
 
 
-module.exports = {createAccountController, updateBalance, getAccounts, deleteAccount, renameAccount};
+module.exports = {createAccountController, updateBalance, getAccountsController, deleteAccount, renameAccount};
