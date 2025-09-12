@@ -1,7 +1,7 @@
 const {prisma} = require('../config/prismaClient');
 const AppError = require('../utils/AppError');
 
-const createAccountService = async(userId, accountName) =>{
+const createAccountService = async(userId, accountName, initialBalance) =>{
     
         //validacao de entrada
         if (typeof accountName !== "string" || !/^[a-zA-Z][a-zA-Z0-9_ ]*$/.test(accountName)) {
@@ -32,13 +32,15 @@ const createAccountService = async(userId, accountName) =>{
             data:{
                 userId: userId,
                 name: accountName,
-                balance: 0
+                balance: initialBalance
             }
         })
 
         return newAcc;
 
 }
+
+
 
 //check cache first
 const getAccountsByUserIdService = async(userId) =>{
@@ -57,99 +59,141 @@ const getAccountsByUserIdService = async(userId) =>{
     
 }
 
+const updateAccountBalanceService = async(userId, accountId, newAccountBalance, changeInitialBalanceOrCreateTransaction, categoryId) => {
 
-//check cache first
-const checkIfAccountExists = async(accountId, userId) =>{
-    try{
-        const accExists = await prisma.accounts.findUnique({
+    if (!(changeInitialBalanceOrCreateTransaction == 'create_transaction' || changeInitialBalanceOrCreateTransaction == 'change_initial_balance')){
+        throw new AppError('parametros possiveis de `changeInitialBalanceOrCreateTransaction`: `change_initial_balance` ou `create_transaction`', 409, 'ACCOUNTS_ERROR')
+    }
+    
+    const currentAccountBalance = await prisma.accounts.findFirst({
+        where:{userId, id: accountId},
+        select: {balance: true},
+    })
+
+    if (newAccountBalance == currentAccountBalance.balance){
+        throw new AppError('Novo balanço da conta é igual ao balanço atual', 409, 'ACCOUNTS_ERROR')
+    }
+    
+    await prisma.accounts.update({
             where:{
                 id: accountId,
                 userId: userId
+            },
+            data:{
+                balance: newAccountBalance
             }
-        })
-        return accExists
-    }catch(error){
-        console.error("Erro ao verificar se a conta já existe", error);
-        return null;
-    }
-}
+    })
 
-const deleteAccountById = async(userId, accountId) =>{
-    try{
-        const dellAccById = await prisma.accounts.delete({
-            where:{
-                userId: userId,
-                id: accountId
+    if (changeInitialBalanceOrCreateTransaction == 'create_transaction'){
+
+        //verificar se a categoria selecionada para a transacao é do tipo correspondente
+        
+        const categoryType = await prisma.expenseAndRevenueCategories.findFirst({
+            where:{userId: userId, id: categoryId },
+            select: {type: true}
+        })
+
+    
+        if (newAccountBalance > currentAccountBalance){ //criar uma receita
+
+            if (categoryType.type != 'revenue'){
+                throw new AppError('categoria de tipo (`revenue` ou `expense`) incompativel', 400, 'ACCOUNTS_ERROR')
             }
-        })
-        return dellAccById
-    }catch(error){
-        console.error("Erro ao deletar conta pelo id", error);
-        return null
-    }
-}
 
-//check cache first
-const checkIfrecurringTransactionsExists = async(accountId) =>{
-    try{
-        const recTransExists = await prisma.transactions.findFirst({
-            where:{
-                accountId: accountId,
-                fixed: true
+            await prisma.transactions.create({
+                data:{
+                    amount: newAccountBalance - currentAccountBalance,
+                    type: revenue,
+                    paid_out: true,
+                    payDay: new Date(),
+                    description: 'Ajuste no balanço da conta',
+                    userId: userId,
+                    categoryId: categoryId,
+                    accountId: accountId
+                }
+            })
+
+        } else if (newAccountBalance < currentAccountBalance){ //criar uma despesa
+
+            if (categoryType.type != 'expense'){
+                throw new AppError('categoria de tipo (`revenue` ou `expense`) incompativel', 400, 'ACCOUNTS_ERROR')
             }
-        })
-        return recTransExists
-    }catch(error){
-        console.error("Erro ao verificar se existem transacoes recorrentes vinculadas a este 'accountId'", error);
-        return null
-    }
-}
 
-const updateAccountBalanceService = async(accountId, type, amount, paid_out) => {
-    try{
-
-        if(paid_out){
-            const updateData =
-            type === "expense"
-            ? {balance: {decrement: amount}}
-            : {balance: {increment: amount}};
-
-            const newBalance = await prisma.accounts.update({
-                where:{id: accountId},
-                data: updateData,
-            });
-            
-            return newBalance;
-        }else{
-            return true
+                await prisma.transactions.create({
+                data:{
+                    amount: currentAccountBalance - newAccountBalance,
+                    type: expense,
+                    paid_out: true,
+                    payDay: new Date(),
+                    description: 'Ajuste no balanço da conta',
+                    userId: userId,
+                    categoryId: categoryId,
+                    accountId: accountId
+                }
+            })
         }
-    }catch(error){
-        console.error("Erro ao atualizar o balanço da conta", error);
-        throw new Error("Erro ao atualizar o balanço da conta");
+    
     }
+        
+}
+
+const renameAccountService = async(userId, accountId, accountNewName) =>{
+
+    if(typeof accountId ==! "number" || typeof accountNewName ==! "string"){
+        throw new AppError('Tipos de entrada incorretos', 400, 'ACCOUNTS_ERROR')
+    }
+
+    const renameAccount = await prisma.accounts.update({
+        where:{
+            id: accountId,
+            userId: userId
+        },
+        data:{
+            name: accountNewName
+        }
+    })
+
+    if (!renameAccount){
+        throw new AppError('Erro ao tentar renomear a conta', 400, 'ACCOUNTS_ERROR')
+    }
+
+    return renameAccount
+
 }
 
 const deleteAccountService = async (userId, accountId) => {
-    try {
-        await prisma.$transaction(async (tx) => {
 
-            if(typeof accountId ==! "number"){
-                return res.status(400).json({message: "Id da conta a ser deletada invalido"})
-            }
+    const acc = await prisma.accounts.findFirst({
+        where:{
+            id: accountId,
+            userId: userId,
+        }
+    })
+
+    if (!acc){
+        throw new AppError('Nao existe nenhuma conta com este id', 400, 'ACCOUNTS_ERROR')
+    }
+    
+    await prisma.$transaction(async (tx) => {
+
+        if(typeof accountId ==! "number"){
+            return res.status(400).json({message: "Id da conta a ser deletada invalido"})
+        }
             
-            const recurringTransactions = await tx.transactions.findFirst({
+        const repeatTransactions = await tx.transactions.findFirst({
                 where: {
                     userId: userId,
                     accountId: accountId,
-                    fixed: true,
                 },
+                include:{
+                    repeatTransaction: true
+                }
             });
 
-            if (recurringTransactions) {
-                throw new Error('Existem transações fixas vinculadas a esta conta. Remova-as antes de deletar a conta.');
+            if (repeatTransactions) {
+                throw new AppError('Existem transações com repeticao vinculadas a esta conta. Remova-as antes de deletar a conta.', 400, 'ACCOUNTS_ERROR');
             }
 
-            
             const allTransactions = await tx.transactions.findMany({
                 select: {
                     type: true,
@@ -188,7 +232,7 @@ const deleteAccountService = async (userId, accountId) => {
             });
 
             if(!updateAccountBalance){
-                throw new Error('Erro ao atualizar o balanço da conta');
+                throw new AppError('Erro ao atualizar o balanço da conta', 400, 'ACCOUNTS_ERROR');
             }
 
             // 5) 
@@ -200,7 +244,7 @@ const deleteAccountService = async (userId, accountId) => {
             });
 
             if(!deleteTransactions){
-                throw new Error('Erro ao deletar transacoes vinculadas a esta conta');
+                throw new AppError('Erro ao deletar transacoes vinculadas a esta conta', 400, 'ACCOUNTS_ERROR');
             }
 
             // 6) 
@@ -212,23 +256,17 @@ const deleteAccountService = async (userId, accountId) => {
             });
             
             if(!deleteAccount){
-                throw new Error('Erro ao deletar conta');
+                throw new AppError('Erro ao deletar conta', 400, 'ACCOUNTS_ERROR');
             }
         });
 
-    } catch (error) {
-        console.error('Erro no serviço de deletar uma conta:', error);
-        throw new Error('Erro ao deletar conta. Nenhuma operação foi executada.');
-    }
 };
 
 
 module.exports = {
     createAccountService,
     getAccountsByUserIdService,
-    checkIfAccountExists,
-    deleteAccountById,
-    checkIfrecurringTransactionsExists,
+    renameAccountService,
     updateAccountBalanceService,
     deleteAccountService
 }
