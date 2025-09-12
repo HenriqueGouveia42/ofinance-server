@@ -1,17 +1,17 @@
 const {prisma} = require('../config/prismaClient');
-
-const{ createAccountService, getAccountsByUserIdService, deleteAccountService} 
-= require('../services/accountsServices');
 const AppError = require('../utils/AppError');
 
 
+const{ createAccountService, getAccountsByUserIdService, renameAccountService, deleteAccountService, updateAccountBalanceService} 
+= require('../services/accountsServices');
+
 const createAccountController = async(req, res) =>{
     try{
-        const {accountName} = req.body;
+        const {accountName, initialBalance} = req.body;
 
         const userId = req.user.id
 
-        await createAccountService(userId, accountName)
+        await createAccountService(userId, accountName, initialBalance)
 
         return res.status(201).json({message:"Conta criada com sucesso!"})
 
@@ -46,32 +46,55 @@ const getAccountsController = async(req, res) =>{
     }
 }
 
-const updateBalance = async(req, res) =>{
+const updateBalanceController = async(req, res) =>{
     try{
-        const {accountId, newBalance} = req.body;
 
-        const updateBalance = await prisma.accounts.update({
-            where:{
-                id: accountId
-            },
-            data:{
-                balance: newBalance
-            }
-        });
+        const userId = req.user.id
+
+        const {accountId, newAccountBalance, changeInitialBalanceOrCreateTransaction, categoryId} = req.body;
+
+        await updateAccountBalanceService(userId, accountId, newAccountBalance, changeInitialBalanceOrCreateTransaction, categoryId)
 
         return res.status(200).json({message: "Balanço da conta alterado com sucesso"})
+
     }catch(error){
+
         console.error("Erro ao atualizar o balanço da conta.", error);
-        return res.status(304).json({message:"Erro ao modificar o balanço da conta"})
+
+        if (error instanceof AppError){
+            return res.status(error.statusCode).json({message: error.message})
+        }
+
+        return res.status(500).json({message:"Erro interno ao modificar o balanço da conta"})
     }
 }
 
-const deleteAccount = async(req, res) =>{
+const renameAccountController = async(req, res) =>{
+    try{
+        const userId = req.user.id
+
+        const {accountId, accountNewName} = req.body;
+
+        await renameAccountService(userId, accountId, accountNewName)
+
+        return res.status(200).json({message: "Nome atualizado com sucesso"});
+    }catch(error){
+        console.error("Erro ao renomear conta: ", error);
+
+        if (error instanceof AppError){
+            return res.status(error.statusCode).json({message: error.message})
+        }
+
+        return res.status(500).json({message: "Erro interno ao renomear conta"});
+    }
+}
+
+const deleteAccountController = async(req, res) =>{
    
     try{
-
         const {accountId} = req.body;
-        const {userId} = req.user.id;
+
+        const userId = req.user.id;
 
         const delAcc = await deleteAccountService(userId, accountId);
 
@@ -83,29 +106,5 @@ const deleteAccount = async(req, res) =>{
 
 }
 
-const renameAccount = async(req, res) =>{
-    try{
-        const {accountId, accountNewName} = req.body;
 
-        if(typeof accountId ==! "number" || typeof accountNewName ==! "string"){
-            return res.status(404).json({message: "Tipos de entrada incorretos"})
-        }
-
-        const renameAccount = await prisma.accounts.update({
-            where:{
-                id: accountId,
-                userId: req.user.id
-            },
-            data:{
-                name: accountNewName
-            }
-        })
-        return res.status(200).json({message: "Nome atualizado com sucesso"});
-    }catch(error){
-        console.error("Erro ao renomear conta");
-        return res.status(404).json({message: "Erro ao renomear conta: ", error});
-    }
-}
-
-
-module.exports = {createAccountController, updateBalance, getAccountsController, deleteAccount, renameAccount};
+module.exports = {createAccountController, updateBalanceController, getAccountsController, deleteAccountController, renameAccountController};
