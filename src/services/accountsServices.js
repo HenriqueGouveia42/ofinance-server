@@ -1,5 +1,44 @@
 const {prisma} = require('../config/prismaClient');
+const AppError = require('../utils/AppError');
 
+const createAccountService = async(userId, accountName) =>{
+    
+        //validacao de entrada
+        if (typeof accountName !== "string" || !/^[a-zA-Z][a-zA-Z0-9_ ]*$/.test(accountName)) {
+            throw new AppError("Nome inválido. Deve ser uma string e começar com uma letra", 400);
+        }
+
+        const toTitleCase = (str) => {
+            return str
+              .toLowerCase()
+              .split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+        };
+
+        const titleCaseAccountName = toTitleCase(accountName)
+
+        //checa se este usuario já possui uma conta com este mesmo nome
+        const account = await prisma.accounts.findFirst({
+            where:{ name: titleCaseAccountName, userId }
+        });
+        
+        if(account){
+            throw new AppError('Este usuario já tem uma conta com esse nome!', 409, 'INVALID_ACCOUNT_NAME')
+        }
+
+        //cria a conta
+        const newAcc = await prisma.accounts.create({
+            data:{
+                userId: userId,
+                name: accountName,
+                balance: 0
+            }
+        })
+
+        return newAcc;
+
+}
 
 //check cache first
 const getAccountsByUserId = async(userId) =>{
@@ -16,26 +55,6 @@ const getAccountsByUserId = async(userId) =>{
     }
 }
 
-//check cache first
-const checkIfAccountAlreadyExists = async(accountName, userId) =>{
-    try{
-        const account = await prisma.accounts.findFirst({
-            where:{
-                name: accountName,
-                userId: userId
-            }
-        });
-        
-        if(account){
-            return true
-        }else{
-            return false
-        }
-    }catch(error){
-        console.error("Erro ao checar se a conta já existe", error);
-        return null;
-    }
-}
 
 //check cache first
 const checkIfAccountExists = async(accountId, userId) =>{
@@ -109,17 +128,13 @@ const updateAccountBalanceService = async(accountId, type, amount, paid_out) => 
 }
 
 const deleteAccountService = async (userId, accountId) => {
-    /*
-        1) Verifica se existem transações recorrentes vinculadas a esta conta
-        2) Buscar todas as transações vinculadas
-        3) Somar receitas e despesas
-        4) Atualizar balanço
-        5) Deletar transações da conta
-        6) Deletar a conta em si
-    */
     try {
         await prisma.$transaction(async (tx) => {
-            // 1) 
+
+            if(typeof accountId ==! "number"){
+                return res.status(400).json({message: "Id da conta a ser deletada invalido"})
+            }
+            
             const recurringTransactions = await tx.transactions.findFirst({
                 where: {
                     userId: userId,
@@ -132,7 +147,7 @@ const deleteAccountService = async (userId, accountId) => {
                 throw new Error('Existem transações fixas vinculadas a esta conta. Remova-as antes de deletar a conta.');
             }
 
-            // 2) 
+            
             const allTransactions = await tx.transactions.findMany({
                 select: {
                     type: true,
@@ -148,7 +163,6 @@ const deleteAccountService = async (userId, accountId) => {
                 throw new Error('Erro ao buscar as transacoes vinculadas a conta')
             }
 
-            // 3)
             let revenue = 0;
             let expense = 0;
 
@@ -159,7 +173,6 @@ const deleteAccountService = async (userId, accountId) => {
 
             const balanceResult = revenue - expense;
 
-            // 4) 
             const updateAccountBalance = await tx.accounts.update({
                 where: {
                     id: accountId,
@@ -209,8 +222,8 @@ const deleteAccountService = async (userId, accountId) => {
 
 
 module.exports = {
+    createAccountService,
     getAccountsByUserId,
-    checkIfAccountAlreadyExists,
     checkIfAccountExists,
     deleteAccountById,
     checkIfrecurringTransactionsExists,
