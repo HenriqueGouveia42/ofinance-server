@@ -1,53 +1,29 @@
 const {prisma} = require('../config/prismaClient');
 
-const 
-        {
-            getAccountsByUserId,
-            checkIfAccountAlreadyExists,
-            deleteAccountById,
-            deleteAccountService
-        } = require('../services/accountsServices')
+const{ createAccountService, getAccountsByUserId, deleteAccountService} 
+= require('../services/accountsServices');
+const AppError = require('../utils/AppError');
 
 
-const createAccount = async(req, res) =>{
+const createAccountController = async(req, res) =>{
     try{
         const {accountName} = req.body;
 
-        //Passo 1 Verifica se o nome é válido
-        if(typeof accountName !== "string" || !/^[a-zA-Z]/.test(accountName)){
-            return res.status(400).json({message: "Nome invalido. Deve ser uma string e comecar com uma letra"})
-        }
+        const userId = req.user.id
 
-        //Passo 2: Verifica se já não existe
-        const accountAlreadyExists = await checkIfAccountAlreadyExists(accountName, req.user.id);
-
-        if(accountAlreadyExists){
-            return res.status(400).json({message: "Usuario já tem uma conta com esse nome!"})
-        }
-
-        const toTitleCase = (str) => {
-            return str
-              .toLowerCase()
-              .split(' ')
-              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-              .join(' ');
-        };
-
-        const titleCaseAccountName = toTitleCase(accountName)
-
-        const account = await prisma.accounts.create({
-            data:{
-                userId: req.user.id,
-                name: titleCaseAccountName,
-                balance: 0
-            }
-        });
+        await createAccountService(userId, accountName)
 
         return res.status(201).json({message:"Conta criada com sucesso!"})
 
     }catch(error){
+
         console.error("Erro ao criar nova conta: ", error);
-        return res.status(500).json({ error: "Erro interno ao criar nova conta" });
+        
+        if (error instanceof AppError){
+            return res.status(error.statusCode).json({message: error.message})
+        }
+
+        return res.status(500).json({message:"Erro interno ao criar uma conta"})
     }
 }
 
@@ -88,10 +64,6 @@ const deleteAccount = async(req, res) =>{
         const {accountId} = req.body;
         const {userId} = req.user.id;
 
-        if(typeof accountId ==! "number"){
-            return res.status(400).json({message: "Id da conta a ser deletada invalido"})
-        }
-
         const delAcc = await deleteAccountService(userId, accountId);
 
         return res.status(200).json({message: "Conta deletada com sucesso"});
@@ -127,4 +99,4 @@ const renameAccount = async(req, res) =>{
 }
 
 
-module.exports = {createAccount, updateBalance, getAccounts, deleteAccount, renameAccount};
+module.exports = {createAccountController, updateBalance, getAccounts, deleteAccount, renameAccount};
