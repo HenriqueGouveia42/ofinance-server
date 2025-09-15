@@ -4,46 +4,27 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');  // Adicione essa linha para importar o JWT
 
 
-const {createStagedUserService, createUserService, findStagedUserByEmailService, verifyStagedUserCodeService, loginByEmailAndPassword, deleteStagedUserService} = require('../services/userService');
-const {sendConfirmationCodeToEmailService} = require('../services/emailService');
-const {generateToken, verifyToken} = require('../services/authService');
-
-const generateVerificationCode = () =>{
-    return Math.floor(100000 + Math.random() * 900000).toString();
-};
+const {createUserService, findStagedUserByEmailService, verifyStagedUserCodeService, loginByEmailAndPassword, deleteStagedUserService} = require('../services/userService');
+const {generateToken, signUpService} = require('../services/authService');
+const AppError = require('../utils/AppError');
 
 const signUpController = async (req, res) => {
     try {
         
         const { email, name, password } = req.body;
 
-        if (typeof email != 'string' || typeof name != 'string' || typeof password != 'string') {
-            return res.status(400).json({ message: 'Algum campo ausente ou não é string' });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const verificationCode = generateVerificationCode();
-
-        const createdAt = new Date();
-        const expiresAt = new Date(createdAt.getTime() + 1000 * 60 * 10);
-
-        const newStagedUser = await createStagedUserService({
-            name: name,
-            email: email,
-            password: hashedPassword,
-            createdAt: createdAt,
-            expiresAt: expiresAt,
-            verificationCode: verificationCode
-        });
-
-        await sendConfirmationCodeToEmailService(newStagedUser.email, newStagedUser.verificationCode);
+        await signUpService(email, name, password)
 
         res.status(201).json({ message: "Usuário cadastrado com sucesso. Verifique o código de confirmação enviado por e-mail!" });
 
     } catch (error) {
         console.error('Erro ao registrar usuario', error);
-        res.status(500).json({ message: 'Erro ao cadastrar usuario.' });
+
+        if (error instanceof AppError){
+            return res.status(error.statusCode).json({message: error.message})
+        }
+
+        res.status(500).json({ message: 'Erro interno ao cadastrar usuario.' });
     }
 };
 
