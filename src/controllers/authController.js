@@ -1,23 +1,21 @@
 //Controlador responsável pelas operações de autenticação, como cadastro de usuário (sign-up) e verificacao de codigo
 
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');  // Adicione essa linha para importar o JWT
 
-
-const {createUserService, findStagedUserByEmailService, verifyStagedUserCodeService, loginByEmailAndPassword, deleteStagedUserService} = require('../services/userService');
-const {generateToken, signUpService} = require('../services/authService');
+const {generateToken, signUpService, verifyCodeService, loginService, checkAuthStatusService} = require('../services/authService');
 const AppError = require('../utils/AppError');
 
 const signUpController = async (req, res) => {
     try {
         
-        const { email, name, password } = req.body;
+        const { email, name, password } = req.body
 
         await signUpService(email, name, password)
 
         res.status(201).json({ message: "Usuário cadastrado com sucesso. Verifique o código de confirmação enviado por e-mail!" });
 
     } catch (error) {
+
         console.error('Erro ao registrar usuario', error);
 
         if (error instanceof AppError){
@@ -30,40 +28,10 @@ const signUpController = async (req, res) => {
 
 const verifyCodeController = async(req, res) =>{
     try{
+
         const {email, code} = req.body;
 
-        if(typeof code != 'string' || typeof email != 'string'){
-            return res.status(404).json({message: "Email ou codigo vazios ou invalidos"});
-        }
-        
-        const stagedUser = await findStagedUserByEmailService(email);
-
-        if (!stagedUser){
-            return res.status(404).json({message: "Email do Usuario nao encontrado"});
-        }
-
-        const isCodeValid = await verifyStagedUserCodeService(code, email);
-
-        if(!isCodeValid){
-            return res.status(404).json({message: "Codigo invalido ou expirado"});
-        }
-
-        const newUser = await createUserService({
-            email: stagedUser.email,
-            name: stagedUser.name,
-            password: stagedUser.password,
-            createdAt: stagedUser.createdAt
-        })
-
-        if (newUser.error){
-            return res.status(404).json({message: "Erro ao cadastrar na tabela de usuarios definitivos"});
-        }
-
-        const deleteStagedUser = await deleteStagedUserService(email);
-
-        if(!deleteStagedUser){
-            return res.status(404).json({message: "Erro ao deletar usuario temporario"});
-        }
+        const verifiedCode = await verifyCodeService(email, code)
 
         return res.status(201).json({message: "Codigo verificado com sucesso! Usuario Cadastrado na tabela de usuarios definitivos!"});
 
@@ -71,25 +39,20 @@ const verifyCodeController = async(req, res) =>{
 
         console.error(error);
 
-        res.status(500).json({message: "Erro ao verificar codigo"});
+        if (error instanceof AppError){
+            return res.status(error.statusCode).json({message: error.message})
+        }
+
+        res.status(500).json({message: "Erro interno ao verificar codigo"});
     }
 }
 
 const loginController = async(req, res) =>{
     try{
+
         const {email, password} = req.body;
 
-        if(typeof email != 'string' || typeof password != 'string'){
-            return res.status(404).json({message: 'Algum campo está ausente ou é inválido'});
-        }
-
-        const user = await loginByEmailAndPassword(email, password);
-
-        if(!user){
-            return res.status(401).json({message: "Credenciais invalidas!"}) //401 - unauthorized
-        }
-
-        const token = generateToken(user);
+        const {user, token} = await loginService(email, password)
 
         const isProduction = process.env.NODE_ENV === 'production';
 
@@ -101,30 +64,37 @@ const loginController = async(req, res) =>{
             maxAge: 60 * 60 * 300 //Expira em 03 horas
         });
 
+        
         return res.status(200).json({message: "Logado com sucesso!"});
     
     }catch(error){
         console.error(error);
-        res.status(500).json({message: "Erro interno ao servidor"});
+
+        if (error instanceof AppError){
+            return res.status(error.statusCode).json({message: error.message})
+        }
+
+        res.status(500).json({message: "Erro interno ao logar"});
     }
 
 }
 
 const checkAuthStatusController = async(req, res) =>{
     try{
-        const token = req.cookies.access_token; //Acessa o token do cookie
-        if (!token){
-            return res.status(401).json({message:"Usuario nao autenticado"});
-        }
-        const decoded = jwt.verify(token, process.env.JWT_SECRET); //verifica o token
-
+       
+        const isLoggedIn = await checkAuthStatusService(req)
+        
         return res.status(200).json({
             message: "Usuario autenticado!"
         });
 
     }catch(error){
         console.error("Erro ao verificar se o usuario está autenticado", error);
-        return res.status(404).json({message: "Erro ao verificar se o usuario está autenticado. Token invalido ou expirado"});
+
+        if (error instanceof AppError){
+            return res.status(error.statusCode).json({message: error.message})
+        }
+        return res.status(404).json({message: "Erro interno ao verificar se o usuario está autenticado."});
     }
 }
 
