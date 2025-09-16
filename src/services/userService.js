@@ -76,28 +76,7 @@ const createUserService = async ({ email, name, password, createdAt }) => {
                 },
             });
 
-            //Criar a primeira moeda para o usuario criado
-            const firstCurrency = await prisma.UsersCurrencies.create({
-                data:{
-                    userId: user.id,
-                    name: 'Real Brasileiro',
-                    symbol: 'BRL',
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                }
-            });
-
-            //Atualizar o usuario para definir a moeda padrao
-            const setFirstCurrency = await prisma.users.update({
-                where:{
-                    id: user.id
-                },
-                data:{
-                    defaultCurrencyId: firstCurrency.id,
-                }
-            });
-
-            return {user, firstCurrency, setFirstCurrency};
+            return {user};
         })
         return result;
     } catch (error) {

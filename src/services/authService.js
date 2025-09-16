@@ -15,7 +15,8 @@ const signUpService = async (email, name, password) =>{
     if (typeof email != 'string' || typeof name != 'string' || typeof password != 'string') {
         throw new AppError('Algum campo ausente ou não é string', 400, 'SIGN_UP_ERROR')
     }
-const bcrypt = require('bcryptjs');
+
+    const bcrypt = require('bcryptjs');
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -38,14 +39,27 @@ const bcrypt = require('bcryptjs');
         throw new Error('Erro ao cadastrar novo usuario na tabela de usuarios temporarios', 400, 'AUTH_ERROR')
     }
 
-    const confirmationCodeSent = await sendConfirmationCodeToEmailService(
+    try{
+
+        const confirmationCodeSent = await sendConfirmationCodeToEmailService(
         stagedUser.email,
         stagedUser.verificationCode
-    )
+        )
 
-    if (!confirmationCodeSent){
-        throw new Error('Erro ao enviar o codigo de confirmação para o email', 400, 'AUTH_ERROR')
+        if (!confirmationCodeSent){
+            await deleteStagedUserService(email);
+            throw new AppError('Erro ao enviar o codigo de confirmação para o email', 400, 'AUTH_ERROR')
+        }
+
+    }catch(err){
+        await deleteStagedUserService(email);
+        // repropaga o erro original (se já era AppError mantém, se não, envelopa)
+        if (err instanceof AppError) throw err;
+        throw new AppError('Erro ao enviar o codigo de confirmação para o email', 400, 'AUTH_ERROR');
+    
     }
+
+    
 
 }
 

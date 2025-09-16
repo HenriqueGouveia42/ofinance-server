@@ -1,10 +1,3 @@
-//Configuração do transporte de e-mail usando o Nodemailer. Aqui define-ne
-//host
-//porta
-//autenticacao
-
-
-
 const nodemailer = require("nodemailer");
 
 const emailConfig = nodemailer.createTransport({

@@ -2,7 +2,13 @@
 
 const jwt = require('jsonwebtoken');  // Adicione essa linha para importar o JWT
 
-const {generateToken, signUpService, verifyCodeService, loginService, checkAuthStatusService} = require('../services/authService');
+const {
+    signUpService,
+    verifyCodeService,
+    loginService,
+    checkAuthStatusService
+} = require('../services/authService');
+
 const AppError = require('../utils/AppError');
 
 const signUpController = async (req, res) => {
