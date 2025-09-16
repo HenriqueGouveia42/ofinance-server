@@ -16,14 +16,9 @@ const signUpService = async (email, name, password) =>{
         throw new AppError('Algum campo ausente ou não é string', 400, 'SIGN_UP_ERROR')
     }
 
-    const bcrypt = require('bcryptjs');
-
     const hashedPassword = await bcrypt.hash(password, 10);
-
     const verificationCode = generateVerificationCode();
-
     const createdAt = new Date();
-
     const expiresAt = new Date(createdAt.getTime() + 1000 * 60 * 10);
 
     const stagedUser = await createStagedUserService({
@@ -36,23 +31,26 @@ const signUpService = async (email, name, password) =>{
     });
 
     if (!stagedUser){
-        throw new Error('Erro ao cadastrar novo usuario na tabela de usuarios temporarios', 400, 'AUTH_ERROR')
+        throw new AppError('Erro ao cadastrar novo usuario na tabela de usuarios temporarios', 400, 'AUTH_ERROR')
     }
 
     try{
 
         const confirmationCodeSent = await sendConfirmationCodeToEmailService(
-        stagedUser.email,
-        stagedUser.verificationCode
+            stagedUser.email,
+            stagedUser.verificationCode
         )
 
         if (!confirmationCodeSent){
-            await deleteStagedUserService(email);
             throw new AppError('Erro ao enviar o codigo de confirmação para o email', 400, 'AUTH_ERROR')
         }
 
+        return stagedUser
+
     }catch(err){
+        //rollback
         await deleteStagedUserService(email);
+
         // repropaga o erro original (se já era AppError mantém, se não, envelopa)
         if (err instanceof AppError) throw err;
         throw new AppError('Erro ao enviar o codigo de confirmação para o email', 400, 'AUTH_ERROR');
@@ -133,6 +131,30 @@ const loginService = async(email, password) =>{
 
 }
 
+const logoutService = async() =>{
+
+    try{
+
+        return {
+        cookieName: 'access_token',
+        cookieOptions: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        expires: new Date(0)
+        },
+        message: "Logout realizado com sucesso"
+
+    }
+
+    }catch(error){
+        console.error("Erro ao preparar logou: ", error)
+        
+        throw new AppError('Erro ao preparar logout', 400, 'AUTH_ERROR')
+    }
+
+}
+
 const checkAuthStatusService = async(req) =>{
 
     const token = req.cookies.access_token; //Acessa o token do cookie
@@ -154,4 +176,11 @@ const checkAuthStatusService = async(req) =>{
 
 
 
-module.exports = {signUpService, verifyCodeService, generateToken, loginService, checkAuthStatusService}
+module.exports = {
+    signUpService,
+    verifyCodeService,
+    generateToken,
+    loginService,
+    checkAuthStatusService,
+    logoutService
+}

@@ -6,7 +6,8 @@ const {
     signUpService,
     verifyCodeService,
     loginService,
-    checkAuthStatusService
+    checkAuthStatusService,
+    logoutService
 } = require('../services/authService');
 
 const AppError = require('../utils/AppError');
@@ -106,16 +107,21 @@ const checkAuthStatusController = async(req, res) =>{
 
 const logoutController = async(req, res) =>{
     try{
-        res.cookie('access_token', '', {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'development',
-            sameSite: 'Strict',
-            expires: new Date(0) //Define a data de expiração no passado
-        });
-        res.json({message: "Token JWT enviado via cookie http-only com expiração no passado com sucesso"})
+
+        const {cookieName, cookieOptions, message} = logoutService()
+
+        res.cookie(cookieName, '', cookieOptions);
+
+        return res.json({message})
     }catch(error){
-        console.error("Erro ao enviar token JWT via cookie http only com expiração no passado", error);
-        throw new Error('Erro ao enviar token JWT via cookie http only com expiração no passado');
+
+        console.error("Erro no logout", error);
+
+        if (error instanceof AppError){
+            return res.status(error.statusCode).json({message: error.message})
+        }
+
+        return res.status(500).json({message: "Erro interno ao fazer logout"})
     }
 }
 
