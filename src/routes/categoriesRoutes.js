@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 
-const {newCategory, renameCategory, deleteCategory} = require('../controllers/categoriesController')
+const {createCategory, renameCategory, deleteCategory} = require('../controllers/categoriesController')
 
-router.post('/create-category', newCategory);
+router.post('/create-category', createCategory);
 router.patch('/rename-category', renameCategory)
 router.delete('/delete-category', deleteCategory)
 
