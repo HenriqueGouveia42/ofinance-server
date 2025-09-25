@@ -41,7 +41,6 @@ const createAccountService = async(userId, accountName, initialBalance) =>{
 }
 
 
-
 //check cache first
 const getAccountsByUserIdService = async(userId) =>{
     
