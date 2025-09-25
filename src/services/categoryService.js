@@ -10,17 +10,18 @@ const checkIfCategoryAlreadyExists = async(name, userId, type) =>{
                 type
             }
         });
+
         if(categoryAlreadyExists){
             return true
         }else{
             return false
         }
+        
     }catch(error){
-        console.error("Erro ao verificar se a categoria criada é válida");
-        return null;
+        console.error("Erro ao verificar se a categoria criada é válida", error);
+        throw new AppError('Erro ao verificar se a categoria criada é válida', 404, 'CATEGORY_ERROR')
     }
 }
-
 
 const createCategoryService = async(name, type, userId) =>{
     
@@ -256,7 +257,6 @@ const deleteCategoryService = async(categoryId, userId) => {
 
 module.exports ={
     createCategoryService,
-    checkIfCategoryAlreadyExists,
     deleteCategoryService,
     renameCategoryService,
     checkIfCategoryExists,
