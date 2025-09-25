@@ -132,20 +132,19 @@ const loginService = async(email, password) =>{
 }
 
 const logoutService = async() =>{
-
     try{
 
-        return {
-        cookieName: 'access_token',
-        cookieOptions: {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        expires: new Date(0)
-        },
-        message: "Logout realizado com sucesso"
+        const isProduction = process.env.NODE_ENV === 'production';
 
-    }
+        return {
+            cookieName: 'access_token',
+            cookieOptions: {
+                httpOnly: true,
+                secure: isProduction ? true : false,
+                sameSite: isProduction ? 'strict' : 'lax', //Mais flexivel em desenvolvimento
+            },
+            message: "Logout realizado com sucesso"
+        }
 
     }catch(error){
         console.error("Erro ao preparar logou: ", error)
