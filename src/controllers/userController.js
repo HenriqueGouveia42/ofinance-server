@@ -1,7 +1,7 @@
 const {prisma} = require('../config/prismaClient');
 
 const {getNameAndEmailByUserId} = require('../services/userService');
-const {getAccountsByUserId} = require('../services/accountsServices');
+const {getAccountsByUserIdService} = require('../services/accountsServices');
 const {getCategoriesByUserId} = require('../services/categoryService');
 
 const getUserData = async(req, res) =>{
@@ -21,7 +21,7 @@ const getUserData = async(req, res) =>{
             return res.status(404).json({message: "Usuario nao encontrado"});
         }
 
-        const accounts = await getAccountsByUserId(userId);
+        const accounts = await getAccountsByUserIdService(userId);
 
         const categories = await getCategoriesByUserId(userId);
                 
