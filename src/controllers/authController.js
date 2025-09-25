@@ -66,9 +66,10 @@ const loginController = async(req, res) =>{
         //Configura o cookie HttpOnly com o token
         res.cookie("access_token", token, {
             httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? 'strict' : 'lax', //Mais flexivel em desenvolvimento
-            maxAge: 60 * 60 * 300 //Expira em 03 horas
+            //secure: isProduction,
+            secure: isProduction ? true : false,
+            sameSite: isProduction ? 'strict' : 'none', //Mais flexivel em desenvolvimento
+            maxAge: 1000 * 60 * 60 * 3 //Expira em 03 horas
         });
 
         
@@ -110,9 +111,10 @@ const logoutController = async(req, res) =>{
 
         const {cookieName, cookieOptions, message} = logoutService()
 
-        res.cookie(cookieName, '', cookieOptions);
+        //remove o cookie de autenticação
+        res.clearCookie(cookieName, cookieOptions);
 
-        return res.json({message})
+        return res.status(200).json({message})
     }catch(error){
 
         console.error("Erro no logout", error);
