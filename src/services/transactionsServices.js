@@ -1,72 +1,92 @@
+const { repeatEachOptions } = require('@prisma/client');
 const {prisma} = require('../config/prismaClient');
 
 //Futuramente será implementado o cache
-const {getOrSetCache} = require('../services/cacheService');
+const AppError = require('../utils/AppError');
+/*
+    1) Verificar a presença de campos obrigatorios
+    2) Verificar o tamanho máximo da descrição
+    3) Testa o tamanho do attachment
+    4) Testa se o valor inserido está dentro dos limites
+    5) Verifica se o tipo de transação ('revenue' ou 'expense') é compatível com o tipo de categoria escolhido ('revenue' ou 'expense')
+    6) Revogar as keys do redis relacionadas a transacoes
+    7) Atualização do balanço da conta
+    8) Criar a nova transação
+*/
 
-const createTransactionService = async(
-    //atributos obrigatorios
-    amount,
-    type,
-    paid_out,
-    payDay,
-    description,
-    attachment,
-    remindMe,
-    createdAt,
-    updatedAt,
-    userId,
-    categoryId,
-    accountId,
-    repeatTransaction
-) => {
-    try{
-        const transaction = await prisma.transactions.create({
-            data:{
-                amount,
-                type,
-                paid_out,
-                payDay,
-                description,
-                attachment,
-                remindMe,
-                createdAt,
-                updatedAt,
-                userId,
-                categoryId,
-                accountId,
-            }
-        })
 
-        if (repeatTransaction){
+const validateReqBody = (reqBody, userId) =>{
 
-            const {
-                repeatEvery,
-                repeatEachOptions,
-                repeatEachWeekdays,
-                repeatOnDayOfMonth,
-                ends,
-                endsAt,
-                endsAfterOccurrencies
-            } = repeatTransaction.recurrenceDetails
+    //1 - extracao de campos e conversao de tipos
+    const {
+        amount,
+        type,
+        paid_out,
+        payDay,
+        categoryId,
+        accountId,
+        repeatTransaction, //objeto de dados aninhado
+        //campos opcionais
+        description,
+        attachment,
+        remindMe
+    } = reqBody
 
-            await prisma.repeatTransaction.create({
-                data:{
-                    transactionId: transaction.id,
-                    repeatEvery: repeatEvery,
-                    repeatEachOptions: repeatEachOptions,
-                    repeatEachWeekdays: repeatEachWeekdays,
-                    repeatOnDayOfMonth: repeatOnDayOfMonth,
-                    ends: ends,
-                    endsAt: endsAt,
-                    endsAfterOccurrencies: endsAfterOccurrencies
-                }
-            })
-        }
-        return transaction;
-    }catch(error){
-        console.error("Erro no serviço de criar nova transacao", error);
-        throw new Error('Erro no serviço de criar nova transacao');
+    if (!amount || !type || paid_out == undefined || !payDay || !categoryId || !accountId || !userId){
+        throw new AppError('Dados obrigatórios da transação (amount, type, paid_out, payDay, categoryId, accountId, userId) estão ausentes.', 400, 'TRANSACTION_ERROR')
     }
+
+    //2 - payload principal da transacao 
+    const transactionData = {
+        amount: parseFloat(amount),
+        type: type,
+        paid_out: paid_out,
+        payDay: new Date(payDay), //converte a string ISO para um objeeto da classe Date
+        
+        userId: parseInt(userId, 10),
+        categoryId: parseInt(categoryId, 10),
+        accountId: parseInt(accountId, 10),
+
+        description: description,
+        attachment: attachment,
+
+        remindMe: remindMe ? new Date(remindMe) : undefined
+    }
+
+    //3 - tratamento da relacao aninha (RepeatTransaction)
+    //A sintaxe { create: {} } é a forma do Prisma de dizer:
+    //"Prisma, junto com a criação da transação principal (Transactions), eu quero que você crie um novo registro na tabela relacionada (RepeatTransaction) e vincule ele automaticamente ao ID da nova transação."
+    if (repeatTransaction){
+
+        transactionData.repeatTransaction = {
+            create:{
+                repeatEvery: parseInt(repeatTransaction.repeatEvery, 10),
+                repeatEachOptions: repeatTransaction.repeatEachOptions,
+                repeatOnDayOfMonth: repeatTransaction.repeatOnDayOfMonth
+                    ? parseInt(repeatTransaction.repeatOnDayOfMonth, 10)
+                    : undefined,
+                ends: repeatTransaction.ends,
+                endsAt: repeatTransaction.endsAt
+                    ? new Date(repeatTransaction.endsAt)
+                    : undefined,
+                endsAfterOccurrencies : repeatTransaction.endsAfterOccurrencies
+                    ? parseInt(repeatTransaction.endsAfterOccurrencies, 10)
+                    : undefined,
+                repeatEachWeekdays: repeatTransaction.repeatEachWeekdays && repeatTransaction.repeatEachWeekdays.length > 0
+                    ? {
+                        connect: repeatTransaction.repeatEachWeekdays.map(dayName => ({
+                            name: dayName
+                        }))
+
+                    }
+                    :
+                    undefined
+            }
+        }
+    }
+
+    return transactionData
+
 }
 
 const checkIfTransactionTypeMatchesToCategoryType = async (userId, TransactionType, CategoryId) => {
@@ -86,6 +106,50 @@ const checkIfTransactionTypeMatchesToCategoryType = async (userId, TransactionTy
     return getCategory;
 
 }
+
+const convertToISO = (dateString) =>{
+    const date = new Date(dateString);
+    return date.toISOString();
+}
+
+const createTransactionService = async(reqBody, userId) => {
+
+        const transactionPayloadData = validateReqBody(reqBody, userId)
+
+        if (transactionPayloadData.repeatTransaction){
+
+            const {
+                repeatEvery,
+                repeatEachOptions,
+                repeatEachWeekdays,
+                repeatOnDayOfMonth,
+                ends,
+                endsAt,
+                endsAfterOccurrencies
+            } = transactionPayloadData.repeatTransaction.recurrenceDetails
+        }
+
+        const isTransactionsTypeCorrect = await checkIfTransactionTypeMatchesToCategoryType(userId, type, categoryId);
+
+        if (!isTransactionsTypeCorrect){
+            throw new AppError('Tipo da transacao nao bate com a categoria selecionada', 404, 'TRANSACTION_ERROR')
+        }
+
+
+        const transaction = await prisma.transactions.create({
+            data: transactionPayloadData,
+            include: {
+                repeatTransaction: true,
+                user: true,
+                category: true,
+                account: true
+            }
+        })
+        return transaction;
+   
+}
+
+
 
 const readMonthPaidTransactionsService = async (userId, startDate, endDate) =>{
     try{
@@ -499,8 +563,6 @@ const updateTransactionService = async (userId, transactionId, updates) => {
     }
 };
 
-
-
 const deleteTransactionService = async (transactionId) =>{
     try{
 
@@ -543,9 +605,6 @@ const deleteTransactionService = async (transactionId) =>{
     }
 }
 
-const validateReqBody = (reqBdoy) =>{
-
-}
 
 module.exports ={
     checkIfTransactionTypeMatchesToCategoryType,
