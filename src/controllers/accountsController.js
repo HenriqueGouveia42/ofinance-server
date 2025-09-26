@@ -1,4 +1,3 @@
-const {prisma} = require('../config/prismaClient');
 const AppError = require('../utils/AppError');
 
 

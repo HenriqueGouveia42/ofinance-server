@@ -1,7 +1,9 @@
 const bcrypt = require('bcryptjs');
-const {sendConfirmationEmail} = require('../config/emailConfig');
 const {prisma} = require('../config/prismaClient');
-const {redisClient} = require('../config/redis')
+const AppError = require('../utils/AppError');
+
+const {getAccountsByUserIdService} = require('./accountsServices');
+const {getCategoriesByUserId} = require('./categoryService')
 
 
 const getNameAndEmailByUserId = async(userId) =>{
@@ -24,7 +26,6 @@ const getNameAndEmailByUserId = async(userId) =>{
     }
 }
 
-//CACHE - OK
 const getDefaultCurrencyByCurrencyId = async(defaultCurrencyId) =>{
     try{
         
@@ -168,7 +169,42 @@ const deleteStagedUserService = async(email) =>{
     }
 }
 
+const getUserDataService = async (userId) => {
 
+    //objeto que será retornado
+    const userData = {
+        name: null,
+        email: null,
+        accounts: null,
+        categories: null
+    };
+
+    const nameAndEmail = await getNameAndEmailByUserId(userId);
+
+    if(!nameAndEmail){
+        throw new AppError('Erro ao buscar nome e email do usuario', 404, 'USER_ERROR')
+    }
+
+    const accounts = await getAccountsByUserIdService(userId);
+
+    if (!accounts){
+        throw new AppError('Erro ao buscar contas do usuario', 404, 'USER_ERROR')
+    }
+
+    const categories = await getCategoriesByUserId(userId);
+
+    if (!categories){
+        throw new AppError('Erro ao buscar categorias do usuario', 404, 'USER_ERROR')
+    }
+
+    userData.name = nameAndEmail.name;
+    userData.email = nameAndEmail.email;
+    userData.accounts = accounts;
+    userData.categories = categories;
+
+    return userData
+
+}
 
 module.exports = {
     getNameAndEmailByUserId,
@@ -178,5 +214,6 @@ module.exports = {
     findStagedUserByEmailService,
     verifyStagedUserCodeService,
     loginByEmailAndPassword,
-    deleteStagedUserService
+    deleteStagedUserService,
+    getUserDataService
 };

@@ -1,7 +1,3 @@
-//Controlador responsável pelas operações de autenticação, como cadastro de usuário (sign-up) e verificacao de codigo
-
-const jwt = require('jsonwebtoken');  // Adicione essa linha para importar o JWT
-
 const {
     signUpService,
     verifyCodeService,

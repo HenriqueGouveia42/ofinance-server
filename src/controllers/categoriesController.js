@@ -1,6 +1,5 @@
-const { createCategoryService, checkIfCategoryAlreadyExists, renameCategoryService, deleteCategoryService } = require("../services/categoryService");
+const { createCategoryService, renameCategoryService, deleteCategoryService } = require("../services/categoryService");
 
-const {prisma} = require('../config/prismaClient');
 const AppError = require("../utils/AppError");
 
 const createCategory = async(req, res) =>{
