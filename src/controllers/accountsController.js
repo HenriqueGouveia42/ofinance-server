@@ -99,8 +99,14 @@ const deleteAccountController = async(req, res) =>{
 
         return res.status(200).json({message: "Conta deletada com sucesso"});
     }catch(error){
-        console.error("Erro ao tentar deletar conta", error);
-        return res.status(404).json({message: "Erro ao tentar deletar conta"})
+
+        console.log("Erro ao deletar esta conta", error)
+
+        if (error instanceof AppError){
+            return res.status(error.statusCode).json({message: error.message})
+        }
+
+        return res.status(500).json({message: "Erro interno ao tentar deletar conta"})
     }
 
 }

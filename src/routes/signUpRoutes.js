@@ -1,7 +1,7 @@
 //Mapeamento das rotas para os controladores correspondentes
 
 const express = require('express');
-const {signUpController, verifyCodeController} = require('../controllers/authController');
+const {signUpController, verifyCodeController} = require('../controllers/authControllers');
 const router = express.Router();
 
 router.post('/', signUpController);

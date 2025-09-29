@@ -1,11 +1,19 @@
 const express = require('express');
-const {createTransaction, readPaidMonthTransactions, readUnpaidTransactions, updateTransaction, deleteTransaction} = require('../controllers/transactionController');
+const 
+    {
+        createTransactionController,
+        deleteTransactionController,
+        updateTransactionController,
+        getMonthlyPaidFlowSummaryController,
+        getUnpaidTransactionsSummaryController
+    } = require('../controllers/transactionControllers');
+    
 const router = express.Router();
 
-router.post('/create-transaction', createTransaction);
-router.delete('/delete-transaction', deleteTransaction);
-router.patch('/update-transaction', updateTransaction)
-router.get('/readPaidMonthTransaction', readPaidMonthTransactions);
-router.get('/readUnpaidTransactions', readUnpaidTransactions)
+router.post('/create-transaction', createTransactionController);
+router.delete('/delete-transaction', deleteTransactionController);
+router.patch('/update-transaction', updateTransactionController)
+router.get('/get-monthly-paid-flow-summary', getMonthlyPaidFlowSummaryController);
+router.get('/get-unpaid-transactions-summary', getUnpaidTransactionsSummaryController)
 
 module.exports = router;

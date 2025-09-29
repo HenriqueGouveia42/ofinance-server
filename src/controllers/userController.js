@@ -1,7 +1,7 @@
 const AppError = require('../utils/AppError');
 const {getUserDataService} = require('../services/userService')
 
-const getUserData = async(req, res) =>{
+const getUserDataController = async(req, res) =>{
     try{
         const userId = req.user.id;
 
@@ -21,5 +21,5 @@ const getUserData = async(req, res) =>{
 }
 
 module.exports={
-    getUserData
+    getUserDataController
 }

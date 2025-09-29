@@ -3,17 +3,11 @@ const {prisma} = require('../config/prismaClient');
 
 //Futuramente será implementado o cache
 const AppError = require('../utils/AppError');
-/*
-    1) Verificar a presença de campos obrigatorios
-    2) Verificar o tamanho máximo da descrição
-    3) Testa o tamanho do attachment
-    4) Testa se o valor inserido está dentro dos limites
-    5) Verifica se o tipo de transação ('revenue' ou 'expense') é compatível com o tipo de categoria escolhido ('revenue' ou 'expense')
-    6) Revogar as keys do redis relacionadas a transacoes
-    7) Atualização do balanço da conta
-    8) Criar a nova transação
-*/
 
+const convertToISO = (dateString) =>{
+    const date = new Date(dateString);
+    return date.toISOString();
+}
 
 const validateReqBody = (reqBody, userId) =>{
 
@@ -41,8 +35,10 @@ const validateReqBody = (reqBody, userId) =>{
         amount: parseFloat(amount),
         type: type,
         paid_out: paid_out,
-        payDay: new Date(payDay), //converte a string ISO para um objeeto da classe Date
-        
+        payDay:{
+            startDate: convertToISO(reqBody.payDay.startDate),
+            endDate: convertToISO(reqBody.payDay.endDate)
+        },
         userId: parseInt(userId, 10),
         categoryId: parseInt(categoryId, 10),
         accountId: parseInt(accountId, 10),
@@ -107,11 +103,6 @@ const checkIfTransactionTypeMatchesToCategoryType = async (userId, TransactionTy
 
 }
 
-const convertToISO = (dateString) =>{
-    const date = new Date(dateString);
-    return date.toISOString();
-}
-
 const createTransactionService = async(reqBody, userId) => {
 
         const transactionPayloadData = validateReqBody(reqBody, userId)
@@ -135,49 +126,112 @@ const createTransactionService = async(reqBody, userId) => {
             throw new AppError('Tipo da transacao nao bate com a categoria selecionada', 404, 'TRANSACTION_ERROR')
         }
 
+        await prisma.$transaction(async() => {
 
-        const transaction = await prisma.transactions.create({
-            data: transactionPayloadData,
-            include: {
-                repeatTransaction: true,
-                user: true,
-                category: true,
-                account: true
-            }
-        })
-        return transaction;
-   
-}
+            let incrementOrDecrementObject;
 
+            if(transactionPayloadData.paid_out == true){
 
+                if(transactionPayloadData.type == 'revenue'){
 
-const readMonthPaidTransactionsService = async (userId, startDate, endDate) =>{
-    try{
-        const readMonthT = await prisma.transactions.groupBy({
-            by: ['type'],
-            _sum: {
-                amount: true
-            },
-            where: {
-                userId: userId,
-                paid_out: true,
-                payDay:{
-                    gte: startDate,
-                    lt: endDate
+                    incrementOrDecrementObject = {
+                        increment: transactionPayloadData.amount
+                    };
+
                 }
-            }
-            });
-            return readMonthT;
-    }catch(error){
-        console.error('Erro ao buscar as transacoes do mes');
-        throw new Error('Erro ao buscar as transacoes do mes')
-    }
+                else if(transactionPayloadData.type == 'expense'){
+
+                    incrementOrDecrementObject = {
+                        decrement: transactionPayloadData.amount
+                    }
+
+                }else{
+                    throw new AppError('Erro ao recuperar o tipo da transacao', 400, 'TRANSACTION_ERROR')
+                }
+
+                const updatedAccountBalance = await prisma.accounts.update({
+                    where:{
+                        id: transactionPayloadData.accountId,
+                        userId: transactionPayloadData.userId
+                    },
+                    data:{
+                        balance: incrementOrDecrementObject
+                    }
+                })
+
+                if(!updatedAccountBalance){
+                    throw new AppError('Conta de usuario nao encontrada', 404, 'TRANSACTION_ERROR')
+                }                
+            } 
+
+            
+            const transaction = await prisma.transactions.create({
+                
+                data: transactionPayloadData,
+                include: {
+                    repeatTransaction: true,
+                    user: true,
+                    category: true,
+                    account: true
+                }
+            })
+
+
+            return transaction;
+
+        })
 }
 
-const readUnpaidTransactionsService = async(userId) =>{
-    try{
-        
+const monthMap = {
+    Janeiro: 0,
+    Fevereiro: 1,
+    Março: 2,
+    Abril: 3,
+    Maio: 4,
+    Junho: 5,
+    Julho: 6,
+    Agosto: 7,
+    Setembro: 8,
+    Outubro: 9,
+    Novembro: 10,
+    Dezembro: 11
+}
+
+const getMonthlyPaidFlowSummaryService = async (userId, month, year) =>{
+
+    if (!month || !year || isNaN(year) || !monthMap.hasOwnProperty(month)) {
+        throw new AppError('Mês ou ano inválido!', 400, 'TRANSACTIONS_ERROR')
+    }
+
+    if(!monthMap.hasOwnProperty(month)){
+        throw new AppError('Mes invalido', 400, 'TRANSACTIONS_ERROR')
+    }
+
+    const startDate = new Date(year, monthMap[month], 1);
+
+    const endDate = new Date(year, monthMap[month]+1, 1);
+
+    const paidTransactionsByMonthAndYear = await prisma.transactions.groupBy({
+        by: ['type'],
+        _sum: {
+            amount: true
+        },
+        where: {
+            userId: userId,
+            paid_out: true,
+            payDay:{
+                gte: startDate,
+                lt: endDate
+            }
+        }
+    });
+    return paidTransactionsByMonthAndYear;
+}
+
+const getUnpaidTransactionsSummaryService = async(userId) =>{
+
        const [revenues, expenses] = await Promise.all([
+
         prisma.transactions.aggregate({
             where:{
                 userId,
@@ -189,6 +243,7 @@ const readUnpaidTransactionsService = async(userId) =>{
                 amount: true
             }
         }),
+
         prisma.transactions.aggregate({
             where:{
                 userId,
@@ -201,16 +256,14 @@ const readUnpaidTransactionsService = async(userId) =>{
             }
         })
        ]);
-        return {
-            pendingRevenueCount: revenues._count,
-            pendingRevenueTotal: revenues._sum.amount ?? 0,
-            pendingExpenseCount: expenses._count,
-            pendingExpensesTotal: expenses._sum.amount ?? 0
-        }
-    }catch(error){
-        console.error("Erro ao ler as transações não pagas");
-        throw new Error("Erro no serviço de ler as transações não pagas")
+
+    return {
+        pendingRevenueCount: revenues._count,
+        pendingRevenueTotal: revenues._sum.amount ?? 0,
+        pendingExpenseCount: expenses._count,
+        pendingExpensesTotal: expenses._sum.amount ?? 0
     }
+   
 }
 
 const updateTransactionService = async (userId, transactionId, updates) => {
@@ -605,12 +658,11 @@ const deleteTransactionService = async (transactionId) =>{
     }
 }
 
-
 module.exports ={
     checkIfTransactionTypeMatchesToCategoryType,
     createTransactionService,
-    readMonthPaidTransactionsService,
-    readUnpaidTransactionsService,
+    getMonthlyPaidFlowSummaryService,
+    getUnpaidTransactionsSummaryService,
     updateTransactionService,
     deleteTransactionService,
     validateReqBody

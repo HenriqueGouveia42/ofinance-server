@@ -2,7 +2,7 @@ const { createCategoryService, renameCategoryService, deleteCategoryService } = 
 
 const AppError = require("../utils/AppError");
 
-const createCategory = async(req, res) =>{
+const createCategoryController = async(req, res) =>{
     try{
 
         const {name, type} = req.body;
@@ -25,7 +25,7 @@ const createCategory = async(req, res) =>{
     }
 }
 
-const renameCategory = async(req, res) =>{
+const renameCategoryController = async(req, res) =>{
     try{
         const {categoryId, newCategoryName} = req.body;
 
@@ -46,7 +46,7 @@ const renameCategory = async(req, res) =>{
     }
 }
 
-const deleteCategory = async(req, res) =>{
+const deleteCategoryController = async(req, res) =>{
     try{
        
         const {categoryId} = req.body;
@@ -72,4 +72,4 @@ const deleteCategory = async(req, res) =>{
     }
 }
 
-module.exports = { createCategory, renameCategory, deleteCategory};
+module.exports = { createCategoryController, renameCategoryController, deleteCategoryController};
