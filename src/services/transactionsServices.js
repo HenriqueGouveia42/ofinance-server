@@ -96,7 +96,7 @@ const checkIfTransactionTypeMatchesToCategoryType = async (userId, TransactionTy
     });
         
     if (!getCategory){
-        throw new Error("Categoria não encontrada ou incompatível com o tipo da transação.");
+        throw new AppError('Categoria não encontrada ou incompatível com o tipo da transação.', 400, 'TRANSACTION_ERROR');
     }
 
     return getCategory;
@@ -279,7 +279,7 @@ const updateTransactionService = async (userId, transactionId, updates) => {
         const invalidFields = Object.keys(updates).filter(key => !allowedFields.includes(key));
 
         if (invalidFields.length > 0) {
-            throw new Error(`Campos inválidos: ${invalidFields.join(', ')}`);
+            throw new AppError(`Campos inválidos: ${invalidFields.join(', ')}`, 400, "TRANSACTION_ERROR");
         }
 
         // Busca a transação original
@@ -289,7 +289,7 @@ const updateTransactionService = async (userId, transactionId, updates) => {
 
         
         if (!transaction) {
-            throw new Error("Transação não encontrada ou não pertence ao usuário.");
+            throw new AppError("Transação não encontrada ou não pertence ao usuário.", 400, "TRANSACTION_ERROR");
         }
 
         // Verifica, chave por chave, se os tipos estão corretos e se houve mudança
@@ -359,10 +359,6 @@ const updateTransactionService = async (userId, transactionId, updates) => {
                 //Atualiza a cópia local da transação a fim de evitar mais buscas no banco de dados
                 transaction.amount = updates.amount
 
-            }else{
-                if(typeof updates.amount != 'number'){
-                    throw new Error("'amount' deve ser um numero!")
-                }
             }
 
             // 2 - Alteração no tipo da transação
