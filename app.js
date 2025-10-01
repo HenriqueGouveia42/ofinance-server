@@ -15,6 +15,7 @@ const categoriesRoutes = require('./src/routes/categoriesRoutes');
 const userRoutes = require('./src/routes/userRoutes.js');
 
 const authMiddleware = require('./src/middlewares/authMiddleware');
+const errorMiddleware = require('./src/middlewares/errorMiddleware.js')
 
 const app = express();
 
@@ -34,6 +35,8 @@ app.use('/accounts', authMiddleware, accountsRoutes)
 app.use('/user', authMiddleware, userRoutes);
 app.use('/transaction', authMiddleware, transactionRoutes);
 app.use('/category', authMiddleware, categoriesRoutes);
+
+app.use(errorMiddleware)
 
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
