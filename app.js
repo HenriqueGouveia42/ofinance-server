@@ -44,5 +44,3 @@ if(process.env.NODE_ENV == "development"){
     const swaggerDocs = require("./src/config/swagger.js")
     swaggerDocs(app, PORT)
 }
-
-
