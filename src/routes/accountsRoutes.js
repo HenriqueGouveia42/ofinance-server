@@ -1,11 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const {createAccountController, updateBalanceController, getAccountsController, deleteAccountController, renameAccountController} = require('../controllers/accountsController')
+const {createAccountController, updateAccountBalanceController, getAccountsController, deleteAccountController, renameAccountController} = require('../controllers/accountsController')
 
-router.post('/create-account', createAccountController);
+const validate = require('../middlewares/requestValidatorMiddleware')
+const {createAccountSchema, updateAccountBalanceSchema, renameAccountSchema, deleteAccountSchema} = require('../validators/accountValidators')
+
+router.post('/create-account', validate(createAccountSchema), createAccountController);
 router.get('/get-accounts', getAccountsController);
-router.patch('/update-balance', updateBalanceController);
-router.patch('/rename-account', renameAccountController )
-router.delete('/delete-account', deleteAccountController);
+router.patch('/update-account-balance', validate(updateAccountBalanceSchema), updateAccountBalanceController);
+router.patch('/rename-account', validate(renameAccountSchema), renameAccountController )
+router.delete('/delete-account', validate(deleteAccountSchema), deleteAccountController);
 
 module.exports = router;

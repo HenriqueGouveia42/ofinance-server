@@ -8,8 +8,11 @@ const
         deleteCategoryController
     } = require('../controllers/categoryControllers')
 
-router.post('/create-category', createCategoryController);
-router.patch('/rename-category', renameCategoryController)
-router.delete('/delete-category', deleteCategoryController)
+const validate = require('../middlewares/requestValidatorMiddleware')
+const {createCategoryValidator, renameCategoryValidator, deleteCategoryValidator} = require('../validators/categoryValidators')
+
+router.post('/create-category',validate(createCategoryValidator), createCategoryController);
+router.patch('/rename-category', validate(renameCategoryValidator), renameCategoryController)
+router.delete('/delete-category',validate(deleteCategoryValidator), deleteCategoryController)
 
 module.exports = router;

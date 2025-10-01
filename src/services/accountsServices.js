@@ -3,11 +3,6 @@ const AppError = require('../utils/AppError');
 
 const createAccountService = async(userId, accountName, initialBalance) =>{
     
-        //validacao de entrada
-        if (typeof accountName !== "string" || !/^[a-zA-Z][a-zA-Z0-9_ ]*$/.test(accountName)) {
-            throw new AppError("Nome inválido. Deve ser uma string e começar com uma letra", 400);
-        }
-
         const toTitleCase = (str) => {
             return str
               .toLowerCase()
@@ -59,15 +54,25 @@ const getAccountsByUserIdService = async(userId) =>{
 const updateAccountBalanceService = async(accountId, userId, newAccountBalance) => {
 
     const currentAccountBalance = await prisma.accounts.findFirst({
-        where:{userId, id: accountId},
-        select: {balance: true},
+        where:{
+            userId: userId,
+            id: accountId
+        },
+        select:{
+            balance: true
+        },
     })
+
+    if (!currentAccountBalance){
+        throw new AppError('Conta com esse userId e id nao encontrada', 404, "ACCOUNTS_ERROR")
+    }
 
     if (newAccountBalance == currentAccountBalance.balance){
         throw new AppError('Novo balanço da conta é igual ao balanço atual', 409, 'ACCOUNTS_ERROR')
     }
     
     const balanceUpdated = await prisma.accounts.update({
+
             where:{
                 id: accountId,
                 userId: userId
@@ -86,10 +91,6 @@ const updateAccountBalanceService = async(accountId, userId, newAccountBalance) 
 }
 
 const renameAccountService = async(userId, accountId, accountNewName) =>{
-
-    if(typeof accountId ==! "number" || typeof accountNewName ==! "string"){
-        throw new AppError('Tipos de entrada incorretos', 400, 'ACCOUNTS_ERROR')
-    }
 
     const renameAccount = await prisma.accounts.update({
         where:{
@@ -148,7 +149,6 @@ const deleteAccountService = async (userId, accountId) => {
     });
 
 };
-
 
 module.exports = {
     createAccountService,
