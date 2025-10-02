@@ -33,6 +33,8 @@ app.use('/category', authMiddleware, categoriesRoutes);
 app.use('/auth/login', loginRoutes);
 app.use('/auth/logout', logoutRoutes);
 app.use('/auth/signup', signUpRoutes);
+
+//falta fazer os schemas zod de algumas rotas de transaction e de todas de user
 app.use('/transaction', authMiddleware, transactionRoutes);
 app.use('/user', authMiddleware, userRoutes);
 
