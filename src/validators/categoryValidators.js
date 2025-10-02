@@ -1,6 +1,6 @@
 const { z } = require('zod');
 
-const createCategoryValidator = z.object({
+const createCategorySchema = z.object({
     body: z.object({
         name: z.string({
             required_error: "O campo 'name' é obrigatorio",
@@ -14,7 +14,7 @@ const createCategoryValidator = z.object({
     })
 })
 
-const renameCategoryValidator = z.object({
+const renameCategorySchema = z.object({
     body: z.object({
         categoryId: z.number({
             required_error: "O campo 'categoryId' é obrigatorio",
@@ -26,7 +26,7 @@ const renameCategoryValidator = z.object({
 })
 
 
-const deleteCategoryValidator = z.object({
+const deleteCategorySchema = z.object({
     body: z.object({
 
         categoryId: z.number({
@@ -38,5 +38,5 @@ const deleteCategoryValidator = z.object({
 })
 
 module.exports = {
-    createCategoryValidator, renameCategoryValidator, deleteCategoryValidator
+    createCategorySchema, renameCategorySchema, deleteCategorySchema
 }

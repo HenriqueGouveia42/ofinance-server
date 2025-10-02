@@ -9,10 +9,10 @@ const
     } = require('../controllers/categoryControllers')
 
 const validate = require('../middlewares/requestValidatorMiddleware')
-const {createCategoryValidator, renameCategoryValidator, deleteCategoryValidator} = require('../validators/categoryValidators')
+const {createCategorySchema, renameCategorySchema, deleteCategorySchema} = require('../validators/categoryValidators')
 
-router.post('/create-category',validate(createCategoryValidator), createCategoryController);
-router.patch('/rename-category', validate(renameCategoryValidator), renameCategoryController)
-router.delete('/delete-category',validate(deleteCategoryValidator), deleteCategoryController)
+router.post('/create-category',validate(createCategorySchema), createCategoryController);
+router.patch('/rename-category', validate(renameCategorySchema), renameCategoryController)
+router.delete('/delete-category',validate(deleteCategorySchema), deleteCategoryController)
 
 module.exports = router;

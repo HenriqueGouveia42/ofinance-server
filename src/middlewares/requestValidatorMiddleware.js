@@ -15,6 +15,8 @@ const validate = (schema) => (req, res, next) => {
 
   } catch (error) {
 
+    console.log(error)
+    
     if (error instanceof ZodError){
       const errorMessages = error.issues.map((iss) =>({
         path: iss.path.join('.'),

@@ -29,7 +29,6 @@ const createTransactionController = async (req, res) =>{
             payDay,
             categoryId,
             accountId,
-            //opcionais - se nao vierem no req.body, ficarão como 'undefined'. 'chave': undefined
             description,
             attachment,
             remindMe,

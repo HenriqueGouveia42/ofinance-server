@@ -1,7 +1,6 @@
 const {z} = require('zod');
-const { verifyStagedUserCodeService } = require('../services/userService');
 
-const signUpValidator = z.object({
+const signUpSchema = z.object({
     body: z.object({
         email: z.email({
             required_error: "Email é obrigatorio",
@@ -20,7 +19,7 @@ const signUpValidator = z.object({
     })
 })
 
-const verifyCodeValidator = z.object({
+const verifyCodeSchema = z.object({
     body: z.object({
         
         email: z.email({
@@ -34,4 +33,4 @@ const verifyCodeValidator = z.object({
     })
 })
 
-module.exports = {signUpValidator, verifyCodeValidator}
+module.exports = {signUpSchema, verifyCodeSchema}

@@ -10,7 +10,10 @@ const
     
 const router = express.Router();
 
-router.post('/create-transaction', createTransactionController);
+const validate = require('../middlewares/requestValidatorMiddleware')
+const {createTransactionSchema} = require('../validators/transactionValidators')
+
+router.post('/create-transaction',validate(createTransactionSchema), createTransactionController);
 router.delete('/delete-transaction', deleteTransactionController);
 router.patch('/update-transaction', updateTransactionController)
 router.get('/get-monthly-paid-flow-summary', getMonthlyPaidFlowSummaryController);
