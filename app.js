@@ -28,13 +28,13 @@ app.use(cors({
     credentials: true, // Permite o envio de cookies
 })); // Habilita CORS para permitir requisições de outras origens
 
-app.use('/auth/signup', signUpRoutes);
+app.use('/accounts', authMiddleware, accountsRoutes)
+app.use('/category', authMiddleware, categoriesRoutes);
 app.use('/auth/login', loginRoutes);
 app.use('/auth/logout', logoutRoutes);
-app.use('/accounts', authMiddleware, accountsRoutes)
-app.use('/user', authMiddleware, userRoutes);
+app.use('/auth/signup', signUpRoutes);
 app.use('/transaction', authMiddleware, transactionRoutes);
-app.use('/category', authMiddleware, categoriesRoutes);
+app.use('/user', authMiddleware, userRoutes);
 
 app.use(errorMiddleware)
 
