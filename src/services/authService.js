@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const AppError = require('../utils/AppError');
+const {prisma} = require('../config/prismaClient');
 const {createUserService, createStagedUserService, findStagedUserByEmailService, verifyStagedUserCodeService, deleteStagedUserService, loginByEmailAndPassword} = require('./userService');
 const {sendConfirmationCodeToEmailService} = require('./emailService');
 
@@ -115,14 +116,20 @@ const generateToken = (user) =>{
 
 const loginService = async(email, password) =>{
 
-    if(typeof email != 'string' || typeof password != 'string'){
-        throw new AppError('Algum campo está ausente ou é inválido', 404, 'AUTH_ERROR')
-    }
-
-    const user = await loginByEmailAndPassword(email, password)
+    const user = await prisma.users.findUnique({
+        where:{
+            email: email
+        }
+    })
 
     if(!user){
         throw new AppError('Credenciais invalidas', 401, 'AUTH_ERROR')
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if(!isPasswordValid){
+        throw new AppError('Senha incorreta', 400, 'USER_ERROR')
     }
 
     const token = generateToken(user)
@@ -171,9 +178,6 @@ const checkAuthStatusService = async(req) =>{
     }); //verifica o token
     
 }
-
-
-
 
 module.exports = {
     signUpService,

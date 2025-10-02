@@ -131,29 +131,6 @@ const verifyStagedUserCodeService = async(code, email) =>{
     }
 }
 
-const loginByEmailAndPassword = async(email, password) =>{
-
-    try{
-        const user = await prisma.users.findUnique({
-            where:{
-                email: email
-            }
-        });
-
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-
-        if(!isPasswordValid){
-            return false; //Senha invalida
-        }
-
-        return user;
-
-    }catch(error){
-        console.error('Erro ao fazer login', error);
-        throw new Error('Erro ao fazer login');
-    }
-}
-
 const deleteStagedUserService = async(email) =>{
     try{
         deleteStU = await prisma.stagedUsers.delete({
@@ -213,7 +190,6 @@ module.exports = {
     createUserService,
     findStagedUserByEmailService,
     verifyStagedUserCodeService,
-    loginByEmailAndPassword,
     deleteStagedUserService,
     getUserDataService
 };
