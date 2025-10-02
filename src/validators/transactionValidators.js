@@ -2,10 +2,12 @@ const { z } = require('zod');
 
 const createTransactionSchema = z.object({
     body: z.object({
+
         amount: z.number({
             required_error: "O valor (amount) é obrigatório.",
             invalid_type_error: "O valor deve ser um número."
-        }).positive({ message: "O valor da transação deve ser positivo." }),
+        }).positive({ message: "O valor da transação deve ser positivo." }).min(0.1, {message: "O valor da transacao (amount) deve ser no minimo 0.1"})
+        .max(10000000, {message: "O valor da transacao (amount) deve ser no maixmo 10.000.000"}),
 
         type: z.enum(['revenue', 'expense'], {
             required_error: "O tipo (type) é obrigatório.",
