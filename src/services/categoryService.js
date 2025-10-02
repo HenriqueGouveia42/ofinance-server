@@ -124,134 +124,80 @@ const getCategoriesByUserId = async(userId) =>{
 
 const deleteCategoryService = async(categoryId, userId) => {
 
-     /*
-        Algoritmo para deletar uma categoria
-        1) Descobrir todas as transações vinculadas a esta categoria
-        2) Somar todos os balanços, positivos se de receita, negativos se de despesa, de todas transações vinculadas a esta categoria
-        3) Atualizar os novos valores dos balanços das contas
-        4) Deletar todas as transações vinculadas a esta categoria
-        5) Deletar a categoria em si
-    */
+    return prisma.$transaction(async (tx) => {
 
-    const categoryType = await prisma.expenseAndRevenueCategories.findUnique({
-        select:{
-            type: true
-        },
-        where:{
-            userId: userId,
-            id: categoryId
-        }
-    })
-
-    if (!categoryType){
-        throw new AppError('Erro ao buscar o tipo da categoria a ser deletado', 400, 'CATEGORY_ERROR')
-    }
-
-    //1)
-    const allTransactionsByCategoryId = await prisma.transactions.findMany({
-        select:{
-            accountId: true,
-            type: true,
-            amount: true,
-        },
-        where:{
-            userId: userId,
-            categoryId: categoryId
-        }
-    })
-
-    if (!allTransactionsByCategoryId){
-        throw new AppError('Erro ao buscar todas as transacoes vinculadas a essa categoria', 404, 'CATEGORY_ERROR')
-    }
-
-    if(allTransactionsByCategoryId.length == 0){
-
-        const delCat = await prisma.expenseAndRevenueCategories.delete({
+        //1 - encontra a categoria que vai ser deletada
+        const categoryToDelete = await tx.expenseAndRevenueCategories.findFirst({
             where:{
-                userId: userId,
-                id: categoryId 
+                id: categoryId,
+                userId: userId
             }
         })
 
-        if (!delCat){
-            throw new AppError('Erro ao deletar as categorias quando nao existem transacoes vinculadas a esta categoria', 404, 'CATEGORY_SERVICE')
+        if (!categoryToDelete){
+            throw new AppError("Categoria para este 'categoryId' e 'userId' nao encontrada", 400, "CATEGORY_ERROR")
         }
 
-        return "zero_transactions"
-    }
+        //2 - verifica se existem transacoes a serem migradas para a categoria generica
+        const relatedTransactionsCounter = await tx.transactions.count({
+            where:{
+                categoryId
+            }
+        })
 
-    //1)
-        //allTranscationsByCategoryId = [
-        //  {accountId: 5, type: "revenue", amount: 1500},
-        //  {accountId: 6, type: "expense", amount: 750},
-        //  {accountId: 5, type: "revenue", amount: 600},
-        //  {accountId: 7, type: "expense", amount: 3500} ...
-        //]
+        //se nao houver transacoes relacionadas, simplesmente delete a categoria
+        if (relatedTransactionsCounter === 0){
 
-
-    let accountIdsAndTotalBalance = [];
-
-    //2)
-        //Array de objetos do tipo
-        //accountsIdsAndTotalBalance = [
-        // {accountId: 5, totalBalance: -750},
-        // {accountId: 6, totalBalance: -1500},
-        // {accountId: 7, totalBalance: 5600} ...
-        //
-    //]
-
-    allTransactionsByCategoryId.forEach(transaction =>{
-
-        let existingAccount = accountIdsAndTotalBalance.find(obj => obj.accountId === transaction.accountId)
-
-        //Já existe uma conta com o id do elemento da iteração atual = transactions.id
-        if(existingAccount){
-            transaction.type === 'revenue' ? 
-            existingAccount.totalBalance += transaction.amount :
-            existingAccount.totalBalance -= transaction.amount
-        }else{
-            accountIdsAndTotalBalance.push({
-                accountId: transaction.accountId,
-                totalBalance: transaction.type === 'revenue' ? transaction.amount : -transaction.amount,
-            })
-        }
-    })
-
-    //Os passos 3 e 4 e 5 precisam vir dentro de um bloco 'transaction', pois, caso uma chamada assíncrona falhe, todas as outras feitas anteriormente serão desfeitas, mantendo assim a atomicidade do banco de dados
-    const cascadeOperationsPrismaTransaction = await prisma.$transaction(async (prisma) =>{
-        //3)
-        for(const account of accountIdsAndTotalBalance){
-
-            const updateAccount = await prisma.accounts.update({
-
+            const deletedCategory = await tx.expenseAndRevenueCategories.delete({
                 where:{
-                    userId: userId,
-                    id: account.accountId
-                },
-
-                data:{
-                    balance: account.totalBalance <= 0
-                    ? {increment: Math.abs(account.totalBalance)}
-                    : {decrement: Math.abs(account.totalBalance)}
+                    id: categoryId,
+                    userId: userId
                 }
-            });
+            })
+
+            return true
         }
-        //4)
-        const deleteTransactionsByCategory = await prisma.transactions.deleteMany({
+
+        //3 - determinar o nome e o tipo da categoria generica de destino
+        const generalCategoryName = categoryToDelete.type === 'revenue' ? "Receitas Gerais" : "Despesas Gerais";
+        const generalCategoryType = categoryToDelete.type;
+
+        
+        //4 - upsert tenta atualizar um registro, se nao encontrar ele o cria
+        const generalCategory = await tx.expenseAndRevenueCategories.upsert({
             where:{
+                userId_type_name:{
+                    userId: userId,
+                    type: generalCategoryType,
+                    name: generalCategoryName
+                }
+            },
+            update: {}, //ja existe, nao atualiza nada
+            create:{
                 userId: userId,
-                categoryId: categoryId
+                name: generalCategoryName,
+                type: generalCategoryType
             }
         })
 
-        //5)
-        const deleteCat = await prisma.expenseAndRevenueCategories.delete({
+        //5 - atualiza todas as transacoes de uma so vez  
+        await tx.transactions.updateMany({
             where:{
-                userId: userId,
-                id: categoryId
+                categoryId: categoryId,
+                userId: userId
+            },
+            data:{
+                categoryId: generalCategory.id
             }
+        })
+
+        //6 - por fim, deleta a categoria original
+        await tx.expenseAndRevenueCategories.delete({
+            where:{id: categoryId}
         })
     })
+
+    
 
 }
 
