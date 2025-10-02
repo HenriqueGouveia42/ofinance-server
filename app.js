@@ -6,12 +6,12 @@ const dotenv = require('dotenv');
 
 dotenv.config(); // Carrega as variáveis do .env
 
-const signUpRoutes = require('./src/routes/signUpRoutes');
-const loginRoutes = require('./src/routes/loginRoutes');
-const logoutRoutes = require('./src/routes/logoutRoutes');
-const transactionRoutes = require('./src/routes/transactionsRoutes');
 const accountsRoutes = require('./src/routes/accountsRoutes');
 const categoriesRoutes = require('./src/routes/categoriesRoutes');
+const loginRoutes = require('./src/routes/loginRoutes');
+const logoutRoutes = require('./src/routes/logoutRoutes');
+const signUpRoutes = require('./src/routes/signUpRoutes');
+const transactionRoutes = require('./src/routes/transactionsRoutes');
 const userRoutes = require('./src/routes/userRoutes.js');
 
 const authMiddleware = require('./src/middlewares/authMiddleware');
