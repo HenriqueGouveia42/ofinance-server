@@ -9,82 +9,6 @@ const convertToISO = (dateString) =>{
     return date.toISOString();
 }
 
-const validateReqBody = (reqBody, userId) =>{
-
-    //1 - extracao de campos e conversao de tipos
-    const {
-        amount,
-        type,
-        paid_out,
-        payDay,
-        categoryId,
-        accountId,
-        repeatTransaction, //objeto de dados aninhado
-        //campos opcionais
-        description,
-        attachment,
-        remindMe
-    } = reqBody
-
-    if (!amount || !type || paid_out == undefined || !payDay || !categoryId || !accountId || !userId){
-        throw new AppError('Dados obrigatórios da transação (amount, type, paid_out, payDay, categoryId, accountId, userId) estão ausentes.', 400, 'TRANSACTION_ERROR')
-    }
-
-    //2 - payload principal da transacao 
-    const transactionData = {
-        amount: parseFloat(amount),
-        type: type,
-        paid_out: paid_out,
-        payDay:{
-            startDate: convertToISO(reqBody.payDay.startDate),
-            endDate: convertToISO(reqBody.payDay.endDate)
-        },
-        userId: parseInt(userId, 10),
-        categoryId: parseInt(categoryId, 10),
-        accountId: parseInt(accountId, 10),
-
-        description: description,
-        attachment: attachment,
-
-        remindMe: remindMe ? new Date(remindMe) : undefined
-    }
-
-    //3 - tratamento da relacao aninha (RepeatTransaction)
-    //A sintaxe { create: {} } é a forma do Prisma de dizer:
-    //"Prisma, junto com a criação da transação principal (Transactions), eu quero que você crie um novo registro na tabela relacionada (RepeatTransaction) e vincule ele automaticamente ao ID da nova transação."
-    if (repeatTransaction){
-
-        transactionData.repeatTransaction = {
-            create:{
-                repeatEvery: parseInt(repeatTransaction.repeatEvery, 10),
-                repeatEachOptions: repeatTransaction.repeatEachOptions,
-                repeatOnDayOfMonth: repeatTransaction.repeatOnDayOfMonth
-                    ? parseInt(repeatTransaction.repeatOnDayOfMonth, 10)
-                    : undefined,
-                ends: repeatTransaction.ends,
-                endsAt: repeatTransaction.endsAt
-                    ? new Date(repeatTransaction.endsAt)
-                    : undefined,
-                endsAfterOccurrencies : repeatTransaction.endsAfterOccurrencies
-                    ? parseInt(repeatTransaction.endsAfterOccurrencies, 10)
-                    : undefined,
-                repeatEachWeekdays: repeatTransaction.repeatEachWeekdays && repeatTransaction.repeatEachWeekdays.length > 0
-                    ? {
-                        connect: repeatTransaction.repeatEachWeekdays.map(dayName => ({
-                            name: dayName
-                        }))
-
-                    }
-                    :
-                    undefined
-            }
-        }
-    }
-
-    return transactionData
-
-}
-
 const checkIfTransactionTypeMatchesToCategoryType = async (userId, TransactionType, CategoryId) => {
     
     const getCategory = await prisma.expenseAndRevenueCategories.findUnique({
@@ -105,82 +29,55 @@ const checkIfTransactionTypeMatchesToCategoryType = async (userId, TransactionTy
 
 const createTransactionService = async(reqBody, userId) => {
 
-        const transactionPayloadData = validateReqBody(reqBody, userId)
+    await checkIfTransactionTypeMatchesToCategoryType(userId, reqBody.type, reqBody.categoryId);
 
-        if (transactionPayloadData.repeatTransaction){
+    return prisma.$transaction(async(tx) => {
 
-            const {
-                repeatEvery,
-                repeatEachOptions,
-                repeatEachWeekdays,
-                repeatOnDayOfMonth,
-                ends,
-                endsAt,
-                endsAfterOccurrencies
-            } = transactionPayloadData.repeatTransaction.recurrenceDetails
-        }
-
-        const isTransactionsTypeCorrect = await checkIfTransactionTypeMatchesToCategoryType(userId, type, categoryId);
-
-        if (!isTransactionsTypeCorrect){
-            throw new AppError('Tipo da transacao nao bate com a categoria selecionada', 404, 'TRANSACTION_ERROR')
-        }
-
-        await prisma.$transaction(async() => {
-
-            let incrementOrDecrementObject;
-
-            if(transactionPayloadData.paid_out == true){
-
-                if(transactionPayloadData.type == 'revenue'){
-
-                    incrementOrDecrementObject = {
-                        increment: transactionPayloadData.amount
-                    };
-
-                }
-                else if(transactionPayloadData.type == 'expense'){
-
-                    incrementOrDecrementObject = {
-                        decrement: transactionPayloadData.amount
-                    }
-
-                }else{
-                    throw new AppError('Erro ao recuperar o tipo da transacao', 400, 'TRANSACTION_ERROR')
-                }
-
-                const updatedAccountBalance = await prisma.accounts.update({
-                    where:{
-                        id: transactionPayloadData.accountId,
-                        userId: transactionPayloadData.userId
-                    },
-                    data:{
-                        balance: incrementOrDecrementObject
-                    }
-                })
-
-                if(!updatedAccountBalance){
-                    throw new AppError('Conta de usuario nao encontrada', 404, 'TRANSACTION_ERROR')
-                }                
-            } 
-
+        //Se a transação foi paga, atualize o saldo da conta.
+        if (reqBody.paid_out === true) {
+            const operation = reqBody.type === 'revenue' ? 'increment' : 'decrement';
             
-            const transaction = await prisma.transactions.create({
-                
-                data: transactionPayloadData,
-                include: {
-                    repeatTransaction: true,
-                    user: true,
-                    category: true,
-                    account: true
+            await tx.accounts.update({
+                where: {
+                    id: reqBody.accountId,
+                    userId: userId // CORREÇÃO 2: Use o userId do argumento da função
+                },
+                data: {
+                    balance: {
+                        [operation]: reqBody.amount
+                    }
+                }
+            });
+        }
+    
+        const transaction = await tx.transactions.create({
+            data: {
+                amount: reqBody.amount,
+                type: reqBody.type,
+                paid_out: reqBody.paid_out,
+                payDay: reqBody.payDay,
+                description: reqBody.description,
+                attachment: reqBody.attachment,
+                remindMe: reqBody.remindMe,
+                userId: userId,
+                categoryId: reqBody.categoryId,
+                accountId: reqBody.accountId,
+            },
+        });
+
+        //O repeatTransaction é criado aqui, se existir, e associado à transação.
+        if (reqBody.repeatTransaction) {
+            await tx.repeatTransaction.create({
+                data: {
+                    ...reqBody.repeatTransaction,
+                    transactionId: transaction.id,
                 }
             })
+        }
 
-
-            return transaction;
-
-        })
-}
+        return transaction;
+    });
+};
 
 const monthMap = {
     Janeiro: 0,
@@ -198,14 +95,6 @@ const monthMap = {
 }
 
 const getMonthlyPaidFlowSummaryService = async (userId, month, year) =>{
-
-    if (!month || !year || isNaN(year) || !monthMap.hasOwnProperty(month)) {
-        throw new AppError('Mês ou ano inválido!', 400, 'TRANSACTIONS_ERROR')
-    }
-
-    if(!monthMap.hasOwnProperty(month)){
-        throw new AppError('Mes invalido', 400, 'TRANSACTIONS_ERROR')
-    }
 
     const startDate = new Date(year, monthMap[month], 1);
 
@@ -612,26 +501,28 @@ const updateTransactionService = async (userId, transactionId, updates) => {
     }
 };
 
-const deleteTransactionService = async (transactionId) =>{
-    try{
+const deleteTransactionService = async (transactionId, userId) =>{
+    
 
-        const transaction = await prisma.transactions.findUnique({
-            where:{
-                id: transactionId
-            }
-        })
-
-        if (!transaction) {
-            throw new Error('Transação não encontrada');
+    const transaction = await prisma.transactions.findUnique({
+        where:{
+               id: transactionId
         }
+    })
 
-        const operation = transaction.type === 'revenue' ? 'decrement' : 'increment';
+    if (!transaction) {
+        throw new AppError('Transação não encontrada', 400, 'TRANSACTION_ERROR');
+    }
 
-        await prisma.$transaction(async (tx) =>{
+    const operation = transaction.type === 'revenue' ? 'decrement' : 'increment';
 
+    await prisma.$transaction(async (tx) =>{
+
+        if (transaction.paid_out){
             await tx.accounts.update({
                 where:{
-                    id: transaction.accountId
+                    id: transaction.accountId,
+                    userId: userId
                 },
                 data:{
                     balance:{
@@ -639,19 +530,18 @@ const deleteTransactionService = async (transactionId) =>{
                     }
                 }
             })
-    
-            await tx.transactions.delete({
-                where:{
-                    id: transaction.id
+        }
+
+        await tx.transactions.delete({
+            where:{
+                id: transaction.id,
+                userId: userId
                 }
             })
 
         })
 
-    }catch(error){
-        console.error('Erro no servico de deletar uma transacao', error);
-        throw error('Erro no servico de deletar uma transacao');
-    }
+   
 }
 
 module.exports ={
@@ -661,6 +551,5 @@ module.exports ={
     getUnpaidTransactionsSummaryService,
     updateTransactionService,
     deleteTransactionService,
-    validateReqBody
 }
 

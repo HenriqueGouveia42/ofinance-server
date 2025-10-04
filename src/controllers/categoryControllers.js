@@ -33,7 +33,7 @@ const renameCategoryController = async(req, res) =>{
 
         const newName = await renameCategoryService(userId, categoryId, newCategoryName);
 
-        return newName ? res.status(200).json({message: "Nome da categoria alterado com sucesso"}) : res.status(404).json({message: "Erro ao alterar o nome da categoria"})
+        return res.status(200).json({message: "Nome da categoria alterado com sucesso"})
     }catch(error){
 
         console.error("Erro ao mudar o nome da categoria", error)
@@ -42,7 +42,7 @@ const renameCategoryController = async(req, res) =>{
             return res.status(error.statusCode).json({message: error.message})
         }
 
-        return res.status(500).json({message: "Erro interno ao mudar o nome da cateroria"});
+        return res.status(500).json({message: "Erro interno ao mudar o nome da categoria"});
     }
 }
 

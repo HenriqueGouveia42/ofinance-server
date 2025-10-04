@@ -25,17 +25,6 @@ const checkIfCategoryAlreadyExists = async(name, userId, type) =>{
 
 const createCategoryService = async(name, type, userId) =>{
     
-
-    //Verifica se o tipo é válido
-    if(!['revenue', 'expense'].includes(type)){
-        throw new AppError('Tipo de categoria invalido', 400, 'CATEGORY_ERROR')
-    }
-
-    //Verifica se o nome é valido
-    if(typeof name !== "string" || !/^[a-zA-Z]/.test(name)){
-        throw new AppError('Nome da categoria invalido', 400, 'CATEGORY_ERROR')
-    }
-
     const categoryAlreadyExists = await checkIfCategoryAlreadyExists(name, userId, type);
 
     if(categoryAlreadyExists){
@@ -80,12 +69,18 @@ const checkIfCategoryExists = async(userId, categoryId) => {
 }
 
 const renameCategoryService = async(userId, categoryId, newCategoryName) => {
-    
-        
-    if(typeof userId ==! "number" || typeof categoryId ==! "number" || typeof newCategoryName ==! "string"){
-        throw new AppError('Algum parametro da renomeacao esta incorreto', 404, 'CATEGORY_ERROR')
-    }
 
+    const category = await prisma.expenseAndRevenueCategories.findFirst({
+        where: {
+            id: categoryId,
+            userId: userId
+        }
+    });
+
+    if (!category){
+        throw new AppError("Este usuario nao tem uma categoria com esse 'id'", 404, "CATEGORY_ERROR")
+    }
+    
     const newAccName = await prisma.expenseAndRevenueCategories.update({
         where:{
             userId: userId,
@@ -95,10 +90,7 @@ const renameCategoryService = async(userId, categoryId, newCategoryName) => {
             name: newCategoryName
         }
     })
-    
-    if (!newAccName){
-        throw new AppError('Erro ao tentar renomear categoria')
-    }
+  
     
 }
 

@@ -13,10 +13,6 @@ const generateVerificationCode = () =>{
 
 const signUpService = async (email, name, password) =>{
 
-    if (typeof email != 'string' || typeof name != 'string' || typeof password != 'string') {
-        throw new AppError('Algum campo ausente ou não é string', 400, 'SIGN_UP_ERROR')
-    }
-
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationCode = generateVerificationCode();
     const createdAt = new Date();
@@ -63,10 +59,6 @@ const signUpService = async (email, name, password) =>{
 }
 
 const verifyCodeService = async (email, code) =>{
-
-    if(typeof code != 'string' || typeof email != 'string'){
-        throw new AppError('Email ou codigo vazios ou invalidos', 400, 'AUTH_ERROR')
-    }
 
     const stagedUser = await findStagedUserByEmailService(email)
 

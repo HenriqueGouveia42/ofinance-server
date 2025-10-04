@@ -45,14 +45,14 @@ const getAccountsController = async(req, res) =>{
     }
 }
 
-const updateBalanceController = async(req, res) =>{
+const updateAccountBalanceController = async(req, res) =>{
     try{
+
+        const {accountId, newAccountBalance} = req.body;
 
         const userId = req.user.id
 
-        const {accountId, newAccountBalance, changeInitialBalanceOrCreateTransaction, categoryId} = req.body;
-
-        await updateAccountBalanceService(userId, accountId, newAccountBalance, changeInitialBalanceOrCreateTransaction, categoryId)
+        await updateAccountBalanceService(accountId, userId, newAccountBalance)
 
         return res.status(200).json({message: "Balanço da conta alterado com sucesso"})
 
@@ -112,4 +112,4 @@ const deleteAccountController = async(req, res) =>{
 }
 
 
-module.exports = {createAccountController, updateBalanceController, getAccountsController, deleteAccountController, renameAccountController};
+module.exports = {createAccountController, updateAccountBalanceController, getAccountsController, deleteAccountController, renameAccountController};

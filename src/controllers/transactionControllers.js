@@ -29,7 +29,6 @@ const createTransactionController = async (req, res) =>{
             payDay,
             categoryId,
             accountId,
-            //opcionais - se nao vierem no req.body, ficarão como 'undefined'. 'chave': undefined
             description,
             attachment,
             remindMe,
@@ -56,8 +55,9 @@ const createTransactionController = async (req, res) =>{
 const deleteTransactionController = async(req, res) =>{
     try{
         const {transactionId} = req.body;
+        const userId = req.user.id
 
-        await deleteTransactionService(transactionId);
+        await deleteTransactionService(transactionId, userId);
 
         return res.status(200).json({message: "Transacao deletada com sucesso"});
     }catch(error){

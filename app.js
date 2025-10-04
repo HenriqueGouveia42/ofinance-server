@@ -6,15 +6,16 @@ const dotenv = require('dotenv');
 
 dotenv.config(); // Carrega as variáveis do .env
 
-const signUpRoutes = require('./src/routes/signUpRoutes');
-const loginRoutes = require('./src/routes/loginRoutes');
-const logoutRoutes = require('./src/routes/logoutRoutes');
-const transactionRoutes = require('./src/routes/transactionsRoutes');
 const accountsRoutes = require('./src/routes/accountsRoutes');
 const categoriesRoutes = require('./src/routes/categoriesRoutes');
+const loginRoutes = require('./src/routes/loginRoutes');
+const logoutRoutes = require('./src/routes/logoutRoutes');
+const signUpRoutes = require('./src/routes/signUpRoutes');
+const transactionRoutes = require('./src/routes/transactionsRoutes');
 const userRoutes = require('./src/routes/userRoutes.js');
 
 const authMiddleware = require('./src/middlewares/authMiddleware');
+const errorMiddleware = require('./src/middlewares/errorMiddleware.js')
 
 const app = express();
 
@@ -27,13 +28,15 @@ app.use(cors({
     credentials: true, // Permite o envio de cookies
 })); // Habilita CORS para permitir requisições de outras origens
 
-app.use('/auth/signup', signUpRoutes);
+app.use('/accounts', authMiddleware, accountsRoutes)
+app.use('/category', authMiddleware, categoriesRoutes);
 app.use('/auth/login', loginRoutes);
 app.use('/auth/logout', logoutRoutes);
-app.use('/accounts', authMiddleware, accountsRoutes)
-app.use('/user', authMiddleware, userRoutes);
+app.use('/auth/signup', signUpRoutes);
 app.use('/transaction', authMiddleware, transactionRoutes);
-app.use('/category', authMiddleware, categoriesRoutes);
+app.use('/user', authMiddleware, userRoutes);
+
+app.use(errorMiddleware)
 
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
