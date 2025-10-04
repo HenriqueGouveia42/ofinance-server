@@ -96,14 +96,6 @@ const monthMap = {
 
 const getMonthlyPaidFlowSummaryService = async (userId, month, year) =>{
 
-    if (!month || !year || isNaN(year) || !monthMap.hasOwnProperty(month)) {
-        throw new AppError('Mês ou ano inválido!', 400, 'TRANSACTIONS_ERROR')
-    }
-
-    if(!monthMap.hasOwnProperty(month)){
-        throw new AppError('Mes invalido', 400, 'TRANSACTIONS_ERROR')
-    }
-
     const startDate = new Date(year, monthMap[month], 1);
 
     const endDate = new Date(year, monthMap[month]+1, 1);
@@ -509,26 +501,28 @@ const updateTransactionService = async (userId, transactionId, updates) => {
     }
 };
 
-const deleteTransactionService = async (transactionId) =>{
-    try{
+const deleteTransactionService = async (transactionId, userId) =>{
+    
 
-        const transaction = await prisma.transactions.findUnique({
-            where:{
-                id: transactionId
-            }
-        })
-
-        if (!transaction) {
-            throw new Error('Transação não encontrada');
+    const transaction = await prisma.transactions.findUnique({
+        where:{
+               id: transactionId
         }
+    })
 
-        const operation = transaction.type === 'revenue' ? 'decrement' : 'increment';
+    if (!transaction) {
+        throw new AppError('Transação não encontrada', 400, 'TRANSACTION_ERROR');
+    }
 
-        await prisma.$transaction(async (tx) =>{
+    const operation = transaction.type === 'revenue' ? 'decrement' : 'increment';
 
+    await prisma.$transaction(async (tx) =>{
+
+        if (transaction.paid_out){
             await tx.accounts.update({
                 where:{
-                    id: transaction.accountId
+                    id: transaction.accountId,
+                    userId: userId
                 },
                 data:{
                     balance:{
@@ -536,19 +530,18 @@ const deleteTransactionService = async (transactionId) =>{
                     }
                 }
             })
-    
-            await tx.transactions.delete({
-                where:{
-                    id: transaction.id
+        }
+
+        await tx.transactions.delete({
+            where:{
+                id: transaction.id,
+                userId: userId
                 }
             })
 
         })
 
-    }catch(error){
-        console.error('Erro no servico de deletar uma transacao', error);
-        throw error('Erro no servico de deletar uma transacao');
-    }
+   
 }
 
 module.exports ={

@@ -79,4 +79,42 @@ const createTransactionSchema = z.object({
     })
 });
 
-module.exports = { createTransactionSchema };
+const deleteTransactionSchema = z.object({
+    body: z.object({
+        transactionId: z.number({message: "O campo 'transactionId' precisa ser um numero!"})
+    })
+})
+
+const monthMap = {
+    Janeiro: 0,
+    Fevereiro: 1,
+    Março: 2,
+    Abril: 3,
+    Maio: 4,
+    Junho: 5,
+    Julho: 6,
+    Agosto: 7,
+    Setembro: 8,
+    Outubro: 9,
+    Novembro: 10,
+    Dezembro: 11
+}
+
+const monthNames = Object.keys(monthMap);
+
+const getMonthlyPaidFlowSummarySchema = z.object({
+    query: z.object({
+
+        year: z.coerce.number({
+            required_error: "O parametro 'year' é obrigatorio",
+            invalid_type_error: "O ano deve ser um numero valido"
+        }).int({message: "O ano deve ser um numero inteiro"}).min(2000,{message:"O ano deve ser igual ou superior a 2000"}),
+        
+        month: z.enum(monthNames, {
+                required_error: "O parametro 'month' é obrigatorio na URL",
+                errorMap: () => ({message: "O mes fornecido é invalido. Use um nome de mes valido (ex: 'Janeiro')"})
+        })
+    })
+})
+
+module.exports = { createTransactionSchema, deleteTransactionSchema, getMonthlyPaidFlowSummarySchema};

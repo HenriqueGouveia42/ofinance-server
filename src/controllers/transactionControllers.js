@@ -55,8 +55,9 @@ const createTransactionController = async (req, res) =>{
 const deleteTransactionController = async(req, res) =>{
     try{
         const {transactionId} = req.body;
+        const userId = req.user.id
 
-        await deleteTransactionService(transactionId);
+        await deleteTransactionService(transactionId, userId);
 
         return res.status(200).json({message: "Transacao deletada com sucesso"});
     }catch(error){
