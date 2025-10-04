@@ -26,147 +26,122 @@ const getNameAndEmailByUserId = async(userId) =>{
     }
 }
 
-const getDefaultCurrencyByCurrencyId = async(defaultCurrencyId) =>{
-    try{
-        
-        const defaultCurrency = await prisma.usersCurrencies.findUnique({
-            where: {id: defaultCurrencyId},
-        });
-
-        if(!defaultCurrency){
-            throw new Error('Moeda nao encontrada');
-        }
-
-        
-        return defaultCurrency;
-    }catch(error){
-        console.error('Erro ao recuperar o nome da moeda pelo seu id', error);
-        throw new Error('Erro ao recuperar o nome da moeda pelo seu id');
-    }
-}
-
 const createStagedUserService = async ({ name, email, password, createdAt, expiresAt, verificationCode }) => {
-    try {
-        const user = await prisma.stagedUsers.create({
-            data:{ 
-                name: name,
-                email: email,
-                password: password,
-                createdAt: createdAt,
-                expiresAt: expiresAt,
-                verificationCode: verificationCode
-            },
-        });
-        return user;
-    } catch (error) {
-        console.error('Erro ao registrar usuario temporario no banco de dados', error);
-        throw new Error("Erro ao registrar usuario temporario no banco de dados");
-    }
+    const user = await prisma.stagedUsers.create({
+        data:{ 
+            name: name,
+            email: email,
+            password: password,
+            createdAt: createdAt,
+            expiresAt: expiresAt,
+            verificationCode: verificationCode
+        },
+    });
+    return user;
 };
 
 const createUserService = async ({ email, name, password, createdAt }) => {
-    try {
-        const result = await prisma.$transaction(async (prisma)=>{
+    const result = await prisma.$transaction(async (prisma)=>{
             
-            const user = await prisma.users.create({
-                data:{
-                    email,
-                    name,
-                    password,
-                    createdAt
-                },
-            });
+        const user = await prisma.users.create({
+            data:{
+                email,
+                name,
+                password,
+                createdAt
+            },
+        });
+        return {user};
+    })
 
-            return {user};
-        })
-        return result;
-    } catch (error) {
-        console.error('Erro ao registrar usuario definitivo ou criar a moeda padrao no banco de dados', error);
-        throw new Error('Erro ao registrar usuario definitivo ou criar a moeda padrao no banco de dados');
-    }
-    
+    return result;
 };
 
 const findStagedUserByEmailService = async(email) =>{
-    try{
-        const stagedUser =  await prisma.stagedUsers.findUnique({
-            where:{
-                email: email
-            }
-        });
 
-        return stagedUser;        
-    }catch(error){
-        console.error('Erro ao buscar usuario pelo email: ', error);
-        throw new Error('Erro ao buscar usuario pelo email');
+    const stagedUser =  await prisma.stagedUsers.findUnique({
+        where:{
+            email: email
+        }
+    });
+
+    if (!stagedUser){
+        throw new AppError('Erro ao buscar usuario temporario pelo email', 404, 'USER_ERROR')
     }
+
+    return stagedUser;        
 }
 
 const verifyStagedUserCodeService = async(code, email) =>{
-    try{
 
-        const stagedUser = await prisma.stagedUsers.findFirst({
+    const stagedUser = await prisma.stagedUsers.findFirst({
+        where:{
+            verificationCode: code,
+            email: email
+        }
+    })
+
+    if (!stagedUser){
+        throw new AppError("Erro ao buscar usuario temporario", 404, "USER_ERROR")
+    }
+
+    const now = new Date();
+
+    if (stagedUser.expiresAt <= now){ //expired stagedUser
+
+        const deleteStagedUser = await prisma.stagedUsers.delete({
             where:{
-                verificationCode: code,
                 email: email
             }
         })
 
-        const now = new Date();
-
-        if (stagedUser.expiresAt <= now){ //expired stagedUser
-            const deleteStagedUser = await prisma.stagedUsers.delete({
-                where:{
-                    email: email
-                }
-            })
             return false;
-        }
-
-        return stagedUser &&  stagedUser.expiresAt > now;
-
-    }catch(error){
-        console.error('Erro ao verificar codigo', error);
-        throw new Error('Erro ao verificar codigo');
     }
+
+    return stagedUser &&  stagedUser.expiresAt > now;
+
 }
 
 const loginByEmailAndPassword = async(email, password) =>{
 
-    try{
-        const user = await prisma.users.findUnique({
-            where:{
-                email: email
-            }
-        });
-
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-
-        if(!isPasswordValid){
-            return false; //Senha invalida
+    const user = await prisma.users.findUnique({
+        where:{
+            email: email
         }
+    });
 
-        return user;
-
-    }catch(error){
-        console.error('Erro ao fazer login', error);
-        throw new Error('Erro ao fazer login');
+    if (!user){
+        throw new AppError("Usuario com este email nao encontrado", 400, "USER_ERROR")
     }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if(!isPasswordValid){
+        return false;
+    }
+
+    return user;
+
 }
 
 const deleteStagedUserService = async(email) =>{
+
     try{
+
         deleteStU = await prisma.stagedUsers.delete({
             where:{
                 email: email
             }
         });
+
         return deleteStU;
+
+
+    }catch(error){
+        console.log("Erro: ", error)
+        throw new AppError('Erro ao deletar usuario temporario', 400, "USER_ERROR")
     }
-    catch(error){
-        console.error('Erro ao deletar usuario temporario', error);
-        throw new Error('Erro ao deletar usuario temporario');
-    }
+    
 }
 
 const getUserDataService = async (userId) => {
@@ -208,7 +183,6 @@ const getUserDataService = async (userId) => {
 
 module.exports = {
     getNameAndEmailByUserId,
-    getDefaultCurrencyByCurrencyId,
     createStagedUserService,
     createUserService,
     findStagedUserByEmailService,
