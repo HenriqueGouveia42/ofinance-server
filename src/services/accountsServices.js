@@ -26,7 +26,7 @@ const createAccountService = async(userId, accountName, initialBalance) =>{
         const newAcc = await prisma.accounts.create({
             data:{
                 userId: userId,
-                name: accountName,
+                name: titleCaseAccountName,
                 balance: initialBalance
             }
         })

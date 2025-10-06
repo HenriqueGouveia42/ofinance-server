@@ -25,7 +25,7 @@ app.use(cookieParser()); //Middleware para permitir o uso de cookies
 
 app.use(cors({
     origin: 'http://localhost:5173',
-    credentials: true, // Permite o envio de cookies
+    credentials: true, //Permite o envio de cookies
 })); // Habilita CORS para permitir requisições de outras origens
 
 app.use('/accounts', authMiddleware, accountsRoutes)

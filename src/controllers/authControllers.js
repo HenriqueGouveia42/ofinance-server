@@ -64,7 +64,7 @@ const loginController = async(req, res) =>{
             httpOnly: true,
             //secure: isProduction,
             secure: isProduction ? true : false,
-            sameSite: isProduction ? 'strict' : 'none', //Mais flexivel em desenvolvimento
+            sameSite: isProduction ? 'strict' : 'lax', //Mais flexivel em desenvolvimento
             maxAge: 1000 * 60 * 60 * 3 //Expira em 03 horas
         });
 

@@ -105,7 +105,7 @@ const getMonthlyPaidFlowSummaryController = async(req, res) =>{
         
         const transactions = await getMonthlyPaidFlowSummaryService(userId, month, year);
         
-        return transactions
+        return res.status(200).json(transactions)
         
     }catch(error){
 

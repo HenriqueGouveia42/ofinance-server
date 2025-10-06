@@ -8,6 +8,8 @@ const authMiddleware = (req, res, next) =>{
     
     const token = req.cookies.access_token;
 
+    console.log(token)
+
     //console.log("Token que chegou no authMiddleware: " + token)
 
     if(!token || token.trim() === ''){
