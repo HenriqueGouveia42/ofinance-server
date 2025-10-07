@@ -83,6 +83,7 @@ model Accounts {
   transactions Transactions[]
 
   @@index([userId])
+  @@unique([userId, name])
 }
 
 model ExpenseAndRevenueCategories {
