@@ -112,42 +112,77 @@ const renameAccountService = async(userId, accountId, accountNewName) =>{
 
 const deleteAccountService = async (userId, accountId) => {
 
-    const acc = await prisma.accounts.findFirst({
-        where:{
+    const accountToDelete = await prisma.accounts.findFirst({
+        where: {
             id: accountId,
             userId: userId,
         }
-    })
-
-    if (!acc){
-        throw new AppError('Nao existe nenhuma conta com este id', 400, 'ACCOUNTS_ERROR')
-    }
-    
-    await prisma.$transaction(async (tx) => {        
-
-        const deleteTransactions = await tx.transactions.deleteMany({
-            where: {
-                userId: userId,
-                accountId: accountId,
-            },
-        });
-
-        if(!deleteTransactions){
-            throw new AppError('Erro ao deletar transacoes vinculadas a esta conta', 400, 'ACCOUNTS_ERROR');
-        }
- 
-        const deleteAccount = await tx.accounts.delete({
-            where: {
-                id: accountId,
-                userId: userId,
-            },
-        });
-            
-        if(!deleteAccount){
-            throw new AppError('Erro ao deletar conta', 400, 'ACCOUNTS_ERROR');
-        }
     });
 
+    if (!accountToDelete) {
+        throw new AppError('Nao existe nenhuma conta com este id', 400, 'ACCOUNTS_ERROR');
+    }
+
+    await prisma.$transaction(async (tx) => {
+
+        const relatedTransactions = await tx.transactions.findMany({
+            where: {
+                accountId,
+                userId
+            }
+        });
+
+        if (relatedTransactions.length === 0) {
+            await tx.accounts.delete({ where: { id: accountId } });
+            return true;
+        }
+
+        const netBalance = relatedTransactions.reduce((acc, t) => {
+            if (t.paid_out) {
+                return acc + (t.type === 'revenue' ? t.amount : -t.amount);
+            }
+            return acc;
+        }, 0);
+
+        const generalAccountName = "Conta Geral";
+
+        const generalAccount = await tx.accounts.upsert({
+            where: {
+                userId_name: {
+                    userId: userId,
+                    name: generalAccountName
+                }
+            },
+            update: netBalance !== 0 ? {
+                balance: {
+                    ...(netBalance > 0 ? { increment: netBalance } : { decrement: Math.abs(netBalance) })
+                }
+            } : {},
+            create: {
+                userId: userId,
+                name: generalAccountName,
+                balance: netBalance
+            }
+        });
+
+        await tx.transactions.updateMany({
+            where: {
+                accountId: accountId,
+                userId: userId
+            },
+            data: {
+                accountId: generalAccount.id
+            }
+        });
+
+        await tx.accounts.delete({
+            where: {
+                id: accountId,
+            }
+        });
+    });
+
+    return true;
 };
 
 module.exports = {
