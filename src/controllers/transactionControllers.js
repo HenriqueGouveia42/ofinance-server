@@ -54,12 +54,11 @@ const createTransactionController = async (req, res) =>{
 
 const deleteTransactionController = async(req, res) =>{
     try{
-        const {transactionId} = req.body;
+        const {transactionId} = req.query;
+        const {transactionDetailsToUpdate} = req.body;
         const userId = req.user.id
 
-        await deleteTransactionService(transactionId, userId);
-
-        return res.status(200).json({message: "Transacao deletada com sucesso"});
+        await deleteTransactionService(transactionId, userId, transactionDetailsToUpdate)
     }catch(error){
         
         console.error('Erro ao deletar uma transação:', error);
@@ -74,24 +73,20 @@ const deleteTransactionController = async(req, res) =>{
 
 const updateTransactionController = async(req, res) =>{
     try{
-        const {transactionId, updates} = req.body;
-        
+        const {transactionId} = req.query;
+        const {updates} = req.body;
         const userId = req.user.id;
-
-        if(typeof transactionId != 'number' || typeof updates != 'object'){
-            return res.status(400).json({message: "Campos obrigatorios faltando ou de tipos incorretos"});
-        }
-        
         const update = await updateTransactionService(userId, transactionId, updates);
-
-        if(!update){
-            return res.status(204).json({message: "Erro ao atualizar transação"});
-        }
 
         return res.status(200).json({message: "Transacao alterada com sucesso!"})
         
     }catch(error){
-        console.error('Erro ao editar a transacao');
+        console.error('Erro ao editar a transacao', error);
+
+        if (error instanceof AppError){
+            throw new AppError('Erro ao tentar editar transacao', 400, 'TRANSACTION_ERROR')
+        }
+
         return res.status(500).json({message: "Erro interno ao editar transação"})
     }
 }

@@ -1,3 +1,4 @@
+const { TransactionType } = require('@prisma/client');
 const { z } = require('zod');
 
 const createTransactionSchema = z.object({
@@ -80,9 +81,38 @@ const createTransactionSchema = z.object({
 });
 
 const deleteTransactionSchema = z.object({
+
+    params: z.object({
+        id: z.string().transform(Number).refine(val => !isNaN(val) && val > 0, {
+            message: "O ID da transformacao deve ser um número valido na URL"
+        }),
+    }),
+
     body: z.object({
-        transactionId: z.number({message: "O campo 'transactionId' precisa ser um numero!"})
+        amount: z.number().positive("O valor deve ser um numero positivo").optional(),
+        type: z.enum(Object.values(TransactionType)).optional(),
+        paid_out: z.boolean().optional(),
+        payDay: z.coerce.date({
+            invalid_type_error: "O campo 'payDay' deve ser uma data válida"
+        }).optional(),
+        description: z.string().optional(),
+        attachment: z.string().optional(),
+        remindMe: z.coerce.date({
+            invalid_type_error: "O campo 'remindMe' deve ser uma data válida"
+        }).optional(),
+        categoryId: z.number().int().positive().optional(),
+        accountId: z.number().int().positive().optional()
+
+    }).refine(data =>{
+        if (data.type && data.categoryId === undefined){
+            return false
+        }
+        return true
+    }, {
+        message: "Ao alterar o 'type' de uma transacao, um novo 'categoryId' correspondente é obrigatorio",
+        path: ["categoryId"]
     })
+
 })
 
 const monthMap = {
@@ -114,6 +144,12 @@ const getMonthlyPaidFlowSummarySchema = z.object({
                 required_error: "O parametro 'month' é obrigatorio na URL",
                 errorMap: () => ({message: "O mes fornecido é invalido. Use um nome de mes valido (ex: 'Janeiro')"})
         })
+    })
+})
+
+const updateTransactionSchema = z.object({
+    body: z.object({
+
     })
 })
 
