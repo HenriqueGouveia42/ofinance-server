@@ -249,13 +249,9 @@ const updateTransactionService = async (userId, transactionId, updates) => {
             //prosseguimos daqui
         }
 
-        
-
     })
 
-    return true;
-
-   
+    return true;   
 };
 
 const deleteTransactionService = async (transactionId, userId) =>{
@@ -263,7 +259,7 @@ const deleteTransactionService = async (transactionId, userId) =>{
 
     const transaction = await prisma.transactions.findUnique({
         where:{
-               id: transactionId
+            id: transactionId
         }
     })
 
