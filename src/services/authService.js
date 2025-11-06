@@ -97,7 +97,6 @@ const generateToken = (user) =>{
 
     const payLoad ={
         id: user.id,
-        defaultCurrencyId: user.defaultCurrencyId
     }
 
     return jwt.sign(payLoad, process.env.JWT_SECRET,{
