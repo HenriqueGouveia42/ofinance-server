@@ -34,7 +34,9 @@ const createTransactionSchema = z.object({
         }).int().positive(),
 
         description: z.string().max(100, { message: "A descrição não pode ultrapassar 100 caracteres." }).optional(),
+
         attachment: z.string().optional(),
+        
         remindMe: z.coerce.date().optional(),
 
         repeatTransaction: z.object({
@@ -90,17 +92,25 @@ const deleteTransactionSchema = z.object({
 
     body: z.object({
         amount: z.number().positive("O valor deve ser um numero positivo").optional(),
+
         type: z.enum(Object.values(TransactionType)).optional(),
+
         paid_out: z.boolean().optional(),
+
         payDay: z.coerce.date({
             invalid_type_error: "O campo 'payDay' deve ser uma data válida"
         }).optional(),
+
         description: z.string().optional(),
+
         attachment: z.string().optional(),
+
         remindMe: z.coerce.date({
             invalid_type_error: "O campo 'remindMe' deve ser uma data válida"
         }).optional(),
+
         categoryId: z.number().int().positive().optional(),
+
         accountId: z.number().int().positive().optional()
 
     }).refine(data =>{
