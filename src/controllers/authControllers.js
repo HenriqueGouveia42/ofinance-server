@@ -55,7 +55,7 @@ const loginController = async(req, res) =>{
 
         const {email, password} = req.body;
 
-        const {user, token} = await loginService(email, password)
+        const {token} = await loginService(email, password)
 
         const isProduction = process.env.NODE_ENV === 'production';
 
