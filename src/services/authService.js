@@ -125,7 +125,7 @@ const loginService = async(email, password) =>{
 
     const token = generateToken(user)
 
-    return {user, token}
+    return {token}
 
 }
 
